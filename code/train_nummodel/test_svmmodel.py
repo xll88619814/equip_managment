@@ -1,8 +1,8 @@
 import os
 import cv2
 import cPickle
-from pyimagesearch.hog import HOG
-from pyimagesearch import dataset
+from imagesearch.hog import HOG
+from imagesearch import dataset
 
 model = open('mysvm.cpickle').read()
 model = cPickle.loads(model)

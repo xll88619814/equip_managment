@@ -1,6 +1,6 @@
 # import the necessary packages
 from sklearn.svm import LinearSVC
-from pyimagesearch.hog import HOG
+from imagesearch.hog import HOG
 import numpy as np
 import cPickle
 import mahotas

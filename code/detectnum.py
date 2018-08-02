@@ -4,7 +4,7 @@ import mahotas
 import numpy as np
 from math import *
 from filters import adjustim
-from pyimagesearch.hog import HOG
+from imagesearch.hog import HOG
 from PIL import ImageEnhance, Image
 from cut_image import get_splitimages
 from ImagePreprocessing import pre_proc
@@ -12,7 +12,7 @@ from ImagePreprocessing import pre_proc
 
 class detect_tags:
     def __init__(self, type_tag, ratio, thresh_w, thresh_h, DEBUG, DEBUG_DIR):
-        modelpath = 'train_nummodel/models/num_char.cpickle'
+        modelpath = 'code/train_nummodel/models/num_char.cpickle'
         model = open(modelpath).read()
         self.model = cPickle.loads(model)
 
