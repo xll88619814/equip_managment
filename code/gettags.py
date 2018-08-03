@@ -46,12 +46,75 @@ def detect_redlight(im, im_name):
             lights.append((int(y), int(x), int(radius)))
     return ok, lights
 
+def selectu(u_num, uboxes):
+    for ind, u in enumerate(u_num):
+        if len(u) > 2:
+            u_num.remove(u)
+            u_num.append(u[:2])
+        elif len(u) < 2:
+            u_num.remove(u)
+            del uboxes[ind]
+
+    clusters = []
+    cluster = []
+    cluster.append((u_num[0], uboxes[0]))
+    for ind, box in enumerate(uboxes[1:]):
+        if abs(box[0] - uboxes[ind][0]) < 50:
+            cluster.append((u_num[ind+1], box))
+        else:
+            clusters.append(cluster)
+            cluster = []
+            cluster.append((u_num[ind+1], box))
+    clusters.append(cluster)
+    for ind, c in enumerate(clusters):
+        if len(c) == 2:
+            if c[0][0] == c[1][0]:
+                del clusters[ind][0]
+            else:
+                del clusters[ind]
+    if len(clusters) >= 2:
+        set_unum = [clusters[0][0][0], clusters[-1][0][0]]
+        boxes = [clusters[0][0][1], clusters[-1][0][1]]
+    else:
+        set_unum = boxes =  []
+     
+    return set_unum, boxes
+
+def findfirstpoint(im, uboxes, im_name, DEBUG):
+    lower_hue_low = [25, 127, 80]
+    lower_hue_high = [31, 255, 230]
+    hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
+
+    kernel_size = (10,10)
+    mask_lower= create_hue_mask(hsv_image, lower_hue_low, lower_hue_high, kernel_size)
+    if DEBUG:
+        result_image_path = os.path.join(DEBUG_DIR, im_name + "_equip.jpg")
+        cv2.imwrite(result_image_path, mask_lower)
+    labels = measure.label(mask_lower, connectivity=2)
+    pro = measure.regionprops(labels)
+    min_width = 1000
+    for p in pro:
+        (x1, y1, x2, y2) = p.bbox
+        width = y2 - y1
+        if 170 > width > 140:
+            if min_width > width:
+                min_width = width
+    box = []
+    firstx = uboxes[0][2] - 10
+    for p in pro:
+        (x1, y1, x2, y2) = p.bbox
+        if min_width <= y2-y1 < min_width + 20:
+            #print(p.bbox)
+            if abs(x1 - uboxes[0][2]) < 40:
+                firstx = x1-5
+                break
+    return firstx
 
 def findregion(im, im_name, DEBUG):
 
     # Find jigui tags
-    lower_hue_low = [23, 150, 50]
-    lower_hue_high = [29, 255, 230]
+    lower_hue_low = [23, 127, 50]
+    lower_hue_high = [31, 255, 230]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
@@ -86,31 +149,25 @@ def findregion(im, im_name, DEBUG):
             #submask = cv2.resize(submask,(width, 100),interpolation=cv2.INTER_CUBIC)
             #cv2.imwrite('image/'+im_name+'_'+str(i)+'_'+'u.jpg', subim)
             #cv2.imwrite('image/'+im_name+'_'+str(i)+'_'+'u_mask.jpg', submask)
-    cv2.imwrite('im.jpg', im_copy)
-
-    if len(uboxes) == 4 or len(uboxes) == 2:
-        detect = detect_tags(type_tag = 'u', ratio = 0.6, thresh_w = [17, 45], thresh_h = [42, 60], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
-        u_num = detect.detect_num(utags, im_name, umasks)
-    #print(u_num)
-    for u in u_num:
-        if len(u) > 2:
-            u_num.remove(u)
-            u_num.append(u[:2])
-        elif len(u) < 2:
-            u_num.remove(u)
-    set_unum = list(set(u_num))
-    for s in set_unum:
-        if not s:
-            set_unum.remove(s)
-    set_unum.sort()
-    print('u_num:', set_unum)
+    if DEBUG:
+        result_image_path = os.path.join(DEBUG_DIR, im_name + ".jpg")
+        cv2.imwrite(result_image_path, im_copy)
+    #print('utags:',len(utags))
+ 
+    detect = detect_tags(type_tag = 'u', ratio = 0.6, thresh_w = [17, 45], thresh_h = [42, 60], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+    u_num = detect.detect_num(utags, im_name, umasks)
+    #print('u_num:',u_num)
+    set_unum, uboxes = selectu(u_num, uboxes)
+    #print('set_unum:',set_unum)
+    #print('uboxes:',uboxes)
 
     ok = True
     up_u = 0
     low_u = 0
     region = im.copy()
-    print('jigui tags is: ', len(uboxes))
+    #print('jigui tags is: ', len(uboxes))
     # adjust jigui redion
+    '''
     if len(set_unum) == 2 and len(uboxes) == 4:
 
         low_u = int(set_unum[0])
@@ -132,12 +189,17 @@ def findregion(im, im_name, DEBUG):
         if DEBUG:
             result_image_path = os.path.join(DEBUG_DIR, im_name + "_jigui.jpg")
             cv2.imwrite(result_image_path, region)
-    elif len(set_unum) == 2 and len(uboxes) == 2:
-        print('u tag is two....................')
-        low_u = int(set_unum[0])
-        up_u = int(set_unum[1])
-        region = im[uboxes[0][0]:uboxes[1][2],:,:]
-        width = int(region.shape[1] * 800 / region.shape[0]*1.05)
+    '''
+    if len(set_unum) == 2 and len(uboxes) == 2:
+        #print('u tag is two....................')
+        up_u = int(set_unum[0])
+        low_u = int(set_unum[1])
+
+        firstx = findfirstpoint(im, uboxes, im_name, DEBUG)
+
+        #print('uboxes:', uboxes[0][2]-20, 'first:',firstx)
+        region = im[firstx:uboxes[1][2],:,:]
+        width = int(region.shape[1] * 800 / region.shape[0])
         region = cv2.resize(region,(width, 800),interpolation=cv2.INTER_CUBIC)
         u_point = uboxes[0][0]
         if DEBUG:
@@ -223,7 +285,7 @@ def detecting(im_url, debug=False):
             #print('sum_u:', sum_u, 'height_u: ',height_u)
             
             # Find yellow regions
-            lower_hue_low = [25, 127, 80]
+            lower_hue_low = [23, 127, 50]
             lower_hue_high = [31, 255, 230]
             hsv_image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
@@ -241,7 +303,7 @@ def detecting(im_url, debug=False):
             for p in pro:
                 (x1, y1, x2, y2) = p.bbox
                 width = y2 - y1
-                if 160 > width > 100:
+                if 170 > width > 140:
                     if min_width > width:
                         min_width = width
             #print('min_width:', min_width)
@@ -250,6 +312,10 @@ def detecting(im_url, debug=False):
                 (x1, y1, x2, y2) = p.bbox
                 if min_width <= y2-y1 < min_width + 15:
                     box.append(p.bbox)
+                    #print(p.bbox)
+                    #subim = img[x1:x2, y1:y2, :]
+                    #cv2.imshow('tags', subim)
+                    #cv2.waitKey(0)
             if len(box) > 0:
                 iptags = []
                 ipboxes = []
@@ -274,6 +340,9 @@ def detecting(im_url, debug=False):
                         ipboxes.append(b)
                 
                         # compute u
+                        #if abs(b[0]/height_u - round(b[0]/height_u, 1)) < 0.1: 
+                        #    end_u = int(round(up_u - b[0]/height_u))
+                        #else:
                         end_u = int(round(up_u - b[0]/height_u) -1)
                         start_u = int(round(up_u - box[i+1][2]/height_u))
                         u.append((start_u, end_u))
