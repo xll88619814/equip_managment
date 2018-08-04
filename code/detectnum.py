@@ -11,17 +11,18 @@ from ImagePreprocessing import pre_proc
 
 
 class detect_tags:
-    def __init__(self, type_tag, ratio, thresh_w, thresh_h, DEBUG, DEBUG_DIR):
+    def __init__(self, type_tag, ratio, thresh_w, thresh_h, thresh_gap, DEBUG, DEBUG_DIR):
         modelpath = 'code/train_nummodel/models/num_char.cpickle'
         model = open(modelpath).read()
         self.model = cPickle.loads(model)
 
         self.hog = HOG(orientations = 18, pixelsPerCell = (10, 10), cellsPerBlock = (1,1), transform_sqrt = True, block_norm="L2")
-        self.dict = {10:'c',11:'h',12:'s',13:'t',14:'w'}
+        self.dict = {10:'C',11:'H',12:'I',13:'S',14:'T',15:'W'}
         self.type = type_tag
         self.ratio = ratio 
         self.thresh_w = thresh_w
         self.thresh_h = thresh_h
+        self.thresh_gap = thresh_gap
         self.DEBUG = DEBUG
         self.DEBUG_DIR = DEBUG_DIR
         
@@ -151,6 +152,7 @@ class detect_tags:
             mask = cv2.resize(masks[ind],(width, 100),interpolation=cv2.INTER_CUBIC)
             #cv2.imwrite(image_name+'_'+self.type+'_'+str(ind)+'.jpg', image)
             blurred = pre_proc.proc(image, mask)
+
             width = blurred.shape[1] * 100 / blurred.shape[0]
             blurred = cv2.resize(blurred,(width, 100),interpolation=cv2.INTER_CUBIC)
             blurred = cv2.bitwise_not(blurred)
@@ -186,7 +188,7 @@ class detect_tags:
                 clusters = []
                 for i, c in enumerate(contours):
                     (x, y, w, h) = c
-                    #print((x, y, w, h))
+                    #print('digit:',(x, y, w, h))
                     roi = blurred[y:y + h, x:x + w]
                     #cv2.imshow('roi', roi)
                     #cv2.waitKey(0)
@@ -198,27 +200,32 @@ class detect_tags:
 	            thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
 	            thresh = cv2.bitwise_not(thresh)
-                    #cv2.imwrite('train_nummodel/number/'+image_name+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    #cv2.imwrite('code/train_nummodel/number/'+image_name+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
 	            digit = self.model.predict([hist])[0]
-                    #print('digit:',digit)
+                    
                     if digit >= 10:
                         digit = self.dict[digit]
                     else:
                         digit = str(digit)
+                    #print('digit:',digit)
                     #cv2.rectangle(drawim, (x, y), (x + w, y + h), (0, 0, 255), 1)
                     #cv2.putText(drawim, digit, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     if i == 0:
                         cluster += digit
                     else:
-                        if x - contours[i-1][0] <= 50:
+                        if x - contours[i-1][0] <= self.thresh_gap:
                             cluster += digit
                         else:
+                            if cluster == 'SWTCH':
+                                cluster = 'SWITCH'
                             clusters.append(cluster)
                             cluster = ''
                             cluster += digit
+                #print('cluster:',cluster)
                 clusters.append(cluster)
-                #print(clusters)
+                
+                #print('clusters:',clusters)
                 
                 #cv2.imwrite('result/'+ image_name+'_'+str(ind)+'.jpg', drawim)
             else:
@@ -238,16 +245,17 @@ class detect_tags:
 	            thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
 	            thresh = cv2.bitwise_not(thresh)
-                    #cv2.imwrite('train_nummodel/number/'+image_name+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    cv2.imwrite('code/train_nummodel/number/'+image_name+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
 	            digit = self.model.predict([hist])[0]
                     #print('digit',digit)
                     #cv2.rectangle(drawim, (x, y), (x + w, y + h), (0, 0, 255), 1)
                     #cv2.putText(drawim, str(digit), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    
                     if i == 0:
                         cluster += str(digit)
                     else:
-                        if x - contours[i-1][0] <= 50:
+                        if x - contours[i-1][0] <= self.thresh_gap:
                             cluster += str(digit)
                         else:
                             clusters += cluster
