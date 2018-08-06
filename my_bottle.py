@@ -7,7 +7,7 @@ import os
 sys.path.append("..")
 sys.path.append('code/train_nummodel')
 from config import config
-# from bottle import route, run
+from bottle import route, run
 import json
 from db_connecttion.MySqlConn_gxxj import Mysql
 from code.gettags import detecting
