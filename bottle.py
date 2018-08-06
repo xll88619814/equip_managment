@@ -24,7 +24,7 @@ def get_bean(file_id):
     return im_file
 
 
-#@route("/equip/:args")
+@route("/equip/:args")
 def index(args):
     file_id, im_type= args.split(',')
     print("input args: file_id={}".format(file_id))
@@ -35,12 +35,12 @@ def index(args):
     result = detecting(im_file, im_type)
     return json.dumps(result)
 
-# run(host='localhost', port=2334)
+run(host='localhost', port=2334)
 
-if __name__ =="__main__":
-    file_id = 'e066bcd927de409fbaf0648ab95fae82'
-    im_file  = get_bean(file_id)
-    print("image file: {}".format(im_file))
-
-    ok, result, result_file = detecting(im_file, im_type)
-    print(json.dumps(result))
+# if __name__ =="__main__":
+#     file_id = 'e066bcd927de409fbaf0648ab95fae82'
+#     im_file  = get_bean(file_id)
+#     print("image file: {}".format(im_file))
+# 
+#     ok, result, result_file = detecting(im_file, im_type)
+#     print(json.dumps(result))
