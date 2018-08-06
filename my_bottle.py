@@ -35,7 +35,8 @@ def index(args):
     result = detecting(im_file, im_type)
     return json.dumps(result)
 
-run(host='localhost', port=2334)
+
+run(host='218.85.116.194', port=2334)
 
 # if __name__ =="__main__":
 #     file_id = 'e066bcd927de409fbaf0648ab95fae82'
