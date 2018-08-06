@@ -1,6 +1,7 @@
 import os
 import cv2
 import sys
+import json
 sys.path.append('code/train_nummodel')
 from code.gettags import detecting
 
@@ -10,14 +11,17 @@ if __name__ =='__main__':
     for imagename in os.listdir(test_dir):
         print('image name is : ', imagename)
         image = test_dir + imagename   
-        ok, result = detecting(image, True)
+        ok, result, result_file = detecting(image, True)
+        final_result = json.dumps(result)
+        print('final result: ', final_result)
+
 
 '''
-from code.gettags import selectu
 if __name__ =='__main__':
-    u_num = ['33','23','22', '11', '11']
-    uboxes = [(1,1,100,100), (9,300, 100,400), (200,300,300,400), (391,1,500,100), (400,300,500,400)]
-    set_unum, uboxes = selectu(u_num, uboxes)
-    print('set_unum: ',set_unum)
-    print('uboxes: ', uboxes)
+    test_dir = 'code/test_images/'
+    for imagename in os.listdir(test_dir):
+        im = cv2.imread(test_dir + imagename)
+        height, width, chanel = im.shape
+        image = cv2.resize(im,(int(width*2/1.6), int(height*2/1.6)),interpolation=cv2.INTER_CUBIC)
+        cv2.imwrite(imagename, image)
 '''

@@ -147,6 +147,7 @@ class detect_tags:
         result = []
         for ind, image in enumerate(tags):
             # load the image
+            #print(image.shape)
             width = image.shape[1] * 100 / image.shape[0]
             image = cv2.resize(image,(width, 100),interpolation=cv2.INTER_CUBIC)
             mask = cv2.resize(masks[ind],(width, 100),interpolation=cv2.INTER_CUBIC)
@@ -186,6 +187,11 @@ class detect_tags:
             if self.type == 'switch':
                 cluster = ''
                 clusters = []
+                clusters.append('SWITCH')
+                max_w = 0
+                for i, c in enumerate(contours[1:]):
+                    if max_w < (c[0] - contours[i][0]):
+                        max_w = c[0] - contours[i][0]
                 for i, c in enumerate(contours):
                     (x, y, w, h) = c
                     #print('digit:',(x, y, w, h))
@@ -200,7 +206,7 @@ class detect_tags:
 	            thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
 	            thresh = cv2.bitwise_not(thresh)
-                    #cv2.imwrite('code/train_nummodel/number/'+image_name+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
 	            digit = self.model.predict([hist])[0]
                     
@@ -214,7 +220,7 @@ class detect_tags:
                     if i == 0:
                         cluster += digit
                     else:
-                        if x - contours[i-1][0] <= self.thresh_gap:
+                        if x - contours[i-1][0] < max_w:
                             cluster += digit
                         else:
                             if cluster == 'SWTCH':
@@ -224,7 +230,7 @@ class detect_tags:
                             cluster += digit
                 #print('cluster:',cluster)
                 clusters.append(cluster)
-                
+                del clusters[1:len(clusters)-1]
                 #print('clusters:',clusters)
                 
                 #cv2.imwrite('result/'+ image_name+'_'+str(ind)+'.jpg', drawim)

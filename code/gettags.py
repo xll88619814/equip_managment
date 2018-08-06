@@ -46,25 +46,26 @@ def detect_redlight(im, im_name):
             lights.append((int(y), int(x), int(radius)))
     return ok, lights
 
-def selectu(u_num, uboxes):
+def selectu(u_num, u_boxes):
+    unum = []
+    uboxes = []
     for ind, u in enumerate(u_num):
         if len(u) > 2:
-            u_num.remove(u)
-            u_num.append(u[:2])
-        elif len(u) < 2:
-            u_num.remove(u)
-            del uboxes[ind]
-
+            unum.append(u[:2])
+            uboxes.append(u_boxes[ind])
+        elif len(u) == 2:
+            unum.append(u)
+            uboxes.append(u_boxes[ind])
     clusters = []
     cluster = []
-    cluster.append((u_num[0], uboxes[0]))
+    cluster.append((unum[0], uboxes[0]))
     for ind, box in enumerate(uboxes[1:]):
-        if abs(box[0] - uboxes[ind][0]) < 80:
-            cluster.append((u_num[ind+1], box))
+        if abs(box[0] - uboxes[ind][0]) < 100:
+            cluster.append((unum[ind+1], box))
         else:
             clusters.append(cluster)
             cluster = []
-            cluster.append((u_num[ind+1], box))
+            cluster.append((unum[ind+1], box))
     clusters.append(cluster)
     for ind, c in enumerate(clusters):
         if len(c) == 2:
@@ -80,7 +81,7 @@ def selectu(u_num, uboxes):
 
     return set_unum, boxes
 
-def findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, DEBUG):
+def findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, w_min, w_max, DEBUG):
 
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
 
@@ -95,24 +96,30 @@ def findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, DEBUG):
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
         width = y2 - y1
-        if 180 > width > 140:
+        if w_max > width > w_min:
             if min_width > width:
                 min_width = width
-    box = []
+    boxes = []
     firstx = uboxes[0][2] - 10
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if min_width <= y2-y1 < min_width + 20:
-            #print(p.bbox)
-            if abs(x1 - uboxes[0][2]) < 40:
-                firstx = x1-5
-                break
+        if min_width <= y2-y1 <= min_width + 23:
+            boxes.append(p.bbox)
+    if len(boxes) == 0:
+        return firstx
+    else:
+        dist = abs(boxes[0][0] - uboxes[0][2])
+        for p in boxes[1:]:
+            (x1, y1, x2, y2) = p
+            if abs(x1 - uboxes[0][2]) < dist:
+                dist = abs(x1 - uboxes[0][2])
+                firstx = x1 - 5
     return firstx
 
 def findregion(im, im_name, DEBUG):
 
     # Find u tags from up image
-    lower_hue_low = [25, 127, 70]
+    lower_hue_low = [23, 127, 70]
     lower_hue_high = [31, 255, 230]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
@@ -134,20 +141,24 @@ def findregion(im, im_name, DEBUG):
     i = 0
     for ind, p in enumerate(pro):
         (x1, y1, x2, y2) = p.bbox
-        if 30 < y2-y1 < 55 and 20 < x2-x1 < 35 and y2<0.9*im_width and y1>0.1*im_width and x1>0.05*im_height:
+        if 40 < y2-y1 < 60 and 36 < x2-x1 < 50 and y2<0.9*im_width:# and x1>0.02*im_height:#: and y1>0.1*im_width :
             i += 1
-            utags.append(im[x1-5:x2+5,y1-5:y2+5,:])
+            if x1 >= 5:
+                utags.append(im[x1-5:x2+5,y1-5:y2+5,:])
+                umasks.append(mask_lower[x1-5:x2+5,y1-5:y2+5])
+            else:
+                utags.append(im[x1:x2+5,y1-5:y2+5,:])
+                umasks.append(mask_lower[x1:x2+5,y1-5:y2+5])
             uboxes.append(p.bbox)
-            umasks.append(mask_lower[x1-5:x2+5,y1-5:y2+5])
             cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
-            #print('u:', p.bbox)
+            print('u:', p.bbox)
 
     if DEBUG:
         result_image_path = os.path.join(DEBUG_DIR, im_name + ".jpg")
         cv2.imwrite(result_image_path, im_copy)
     #print('utags:',len(utags))
 
-    detect = detect_tags(type_tag ='u',ratio=0.6,thresh_w=[15, 52],thresh_h=[45, 68],thresh_gap=55,DEBUG=DEBUG,DEBUG_DIR=DEBUG_DIR)
+    detect = detect_tags(type_tag ='u',ratio=0.6,thresh_w=[15, 52],thresh_h=[45, 78],thresh_gap=55,DEBUG=DEBUG,DEBUG_DIR=DEBUG_DIR)
     u_num = detect.detect_num(utags, im_name, umasks)
     print('u_num:',u_num)
     if u_num == ['']:
@@ -163,59 +174,37 @@ def findregion(im, im_name, DEBUG):
     region = im.copy()
     #print('jigui tags is: ', len(uboxes))
     # adjust jigui redion
-    '''
-    if len(set_unum) == 2 and len(uboxes) == 4:
-
-        low_u = int(set_unum[0])
-        up_u = int(set_unum[1])
-        #print('low_u:', low_u, 'up_u:', up_u)
-
-        uboxes.sort(key=lambda x:x[0])
-        up_region = uboxes[:2]
-        low_region = uboxes[2:]
-        up_region.sort(key=lambda x:x[1])    # up_region[0] is left_up,  up_region[1] is right_up
-        low_region.sort(key=lambda x:x[1])    # low_region[0] is left_low, low_region[1] is right_low
-        src_point=np.float32([[up_region[0][1],up_region[0][2]-15],[low_region[0][1],low_region[0][2]],
-                             [low_region[1][3],low_region[1][2]],[up_region[1][3],up_region[1][2]-15]])
-        u_point = up_region[0][2]
-        dsize=(1000, 800)
-        dst_point = np.float32([[0,0],[0,dsize[1]-1],[dsize[0]-1,dsize[1]-1],[dsize[0]-1,0]])
-        h, s = cv2.findHomography(src_point, dst_point, cv2.RANSAC, 10)   # projection transformation
-        region = cv2.warpPerspective(im, h, dsize)
-        if DEBUG:
-            result_image_path = os.path.join(DEBUG_DIR, im_name + "_jigui.jpg")
-            cv2.imwrite(result_image_path, region)
-    '''
+   
     if len(set_unum) == 2 and len(uboxes) == 2:
         #print('u tag is two....................')
         up_u = int(set_unum[0])
         low_u = int(set_unum[1])
        
-        firstx = findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, DEBUG)
+        firstx = findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, 130, 170, DEBUG)
 
         #print('uboxes:', uboxes[0][2]-20, 'first:',firstx)
         region = im[firstx:uboxes[1][2],:,:]
         width = int(region.shape[1] * 800 / region.shape[0])
         region = cv2.resize(region,(width, 800),interpolation=cv2.INTER_CUBIC)
-        u_point = uboxes[0][0]
+        u_point = firstx
         if DEBUG:
             result_image_path = os.path.join(DEBUG_DIR, im_name + "_jigui.jpg")
             cv2.imwrite(result_image_path, region)
     else:
         ok = False
         u_point = 0
-        print('detect u incorrectly')
+        #print('detect u incorrectly')
 
     return ok, region, up_u, low_u, u_point
 
 def findregion_below(im, im_name, DEBUG):
     # Find u tags in below image
-    lower_hue_low = [10, 60, 50]
-    lower_hue_high = [31, 255, 255]
+    lower_hue_low = [23, 127, 70]
+    lower_hue_high = [31, 255, 230]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
-    kernel_size = (9, 9)
+    kernel_size = (10, 10)
     mask_lower= create_hue_mask(hsv_image, lower_hue_low, lower_hue_high, kernel_size)
     if DEBUG:
         result_image_path = os.path.join(DEBUG_DIR, im_name + "_mask_jigui.jpg")
@@ -232,7 +221,7 @@ def findregion_below(im, im_name, DEBUG):
     i = 0
     for ind, p in enumerate(pro):
         (x1, y1, x2, y2) = p.bbox
-        if 50 < y2-y1 < 100 and 50 < x2-x1 < 75:# and y2<0.9*im_width and y1>0.1*im_width and x1>0.1*im_height:
+        if 40 < y2-y1 < 100 and 40 < x2-x1 < 75:# and y2<0.9*im_width and y1>0.1*im_width and x1>0.1*im_height:
             i += 1
             utags.append(im[x1-5:x2+5,y1-5:y2+5,:])
             uboxes.append(p.bbox)
@@ -244,7 +233,7 @@ def findregion_below(im, im_name, DEBUG):
         cv2.imwrite(result_image_path, im_copy)
     #print('utags:',len(utags))
 
-    detect = detect_tags(type_tag ='u',ratio=0.6,thresh_w =[15, 38],thresh_h=[45, 60],thresh_gap=55,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+    detect = detect_tags(type_tag ='u',ratio=0.6,thresh_w =[15, 45],thresh_h=[46, 70],thresh_gap=55,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
     u_num = detect.detect_num(utags, im_name, umasks)
     print('u_num:',u_num)
     if u_num == ['']:
@@ -265,28 +254,28 @@ def findregion_below(im, im_name, DEBUG):
         up_u = int(set_unum[0])
         low_u = int(set_unum[1])
 
-        firstx = findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, DEBUG)
+        firstx = findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, 180, 270, DEBUG)
 
         #print('uboxes:', uboxes[0][2]-20, 'first:',firstx)
         region = im[firstx:uboxes[1][2],:,:]
         width = int(region.shape[1] * 800 / region.shape[0])
         region = cv2.resize(region,(width, 800),interpolation=cv2.INTER_CUBIC)
-        u_point = uboxes[0][0]
+        u_point = firstx
         if DEBUG:
             result_image_path = os.path.join(DEBUG_DIR, im_name + "_jigui.jpg")
             cv2.imwrite(result_image_path, region)
     else:
         ok = False
         u_point = 0
-        print('detect u incorrectly')
+        #print('detect u incorrectly')
 
     return ok, region, up_u, low_u, u_point
 
 
 
 def isswitch(im, im_name, DEBUG):
-    lower_hue_low = [23, 170, 50]
-    lower_hue_high = [30, 255, 255]
+    lower_hue_low = [23, 127, 70]
+    lower_hue_high = [31, 255, 230]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     kernel_size = (10, 10)
     mask_lower= create_hue_mask(hsv_image, lower_hue_low, lower_hue_high, kernel_size)
@@ -301,7 +290,7 @@ def isswitch(im, im_name, DEBUG):
     #i = 0
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if 35 > (x2-x1) > 20 and 300 > (y2-y1) > 240:
+        if 300 > (y2-y1) > 240 and 45 > (x2-x1) > 25:
             #print('switch:',p.bbox)
             #i += 1
             switchboxes.append(p.bbox)
@@ -317,10 +306,11 @@ def isswitch(im, im_name, DEBUG):
     return switch, switchboxes, switchtags, switchmasks
 
 
-def detecting(im_url, debug=False):
+def detecting(im_url, image_type, debug=None):
     im = cv2.imread(im_url)
-    image_type = im_url.split('/')[-1].split('_')[1].split('.')[0]
-    im_name = im_url.split('/')[-1].split('_')[0]
+    #image_type = im_url.split('/')[-1].split('_')[1].split('.')[0]
+    im_name = im_url.split('/')[-1].split('.')[0]
+    image_file = os.path.join('code/result', im_name + '.jpg')
 
     DEBUG = debug
     image = im.copy()
@@ -334,17 +324,18 @@ def detecting(im_url, debug=False):
         if switch and ok == False:
             print('switch.....................................')
             ok = True
-            detect = detect_tags(type_tag ='switch',ratio=0.6,thresh_w=[33, 63],thresh_h=[45, 60],thresh_gap=82,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+            detect = detect_tags(type_tag ='switch',ratio=0.6,thresh_w=[25, 65],thresh_h=[40, 65],thresh_gap=75,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
             result = detect.detect_num(switchtags, im_name, switchmasks)
+            print(result)
             # visulize
-            for ind, res in enumerate(result):
-                final_result.append({'ID':res[0], 'U':res[1]})
-            #    cv2.putText(image, "{}, IP: {}, U: {}".format(res[0], res[1], res[2:]), (point[1],point[0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-            #savepath = 'result/'+im_name+'.jpg'
-            #cv2.imwrite(savepath, image)
-        
-        else:
-            if ok:
+            if result:
+                for ind, res in enumerate(result):
+                    if len(res) >= 2:
+                        cv2.putText(im, 'ID: '+res[0]+' U: '+res[1], (switchboxes[ind][1], u_point+switchboxes[ind][0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                        final_result.append({'ID':res[0], 'U':res[1]})
+                image_file = os.path.join('code/result', im_name + '.jpg')
+                cv2.imwrite(image_file, im)
+        elif switch == False and ok ==True :
                 print('start detect IP..................')
                 sum_u = up_u - low_u
                 height_u = img.shape[0]*1.0/sum_u
@@ -378,14 +369,14 @@ def detecting(im_url, debug=False):
                 for p in pro:
                     (x1, y1, x2, y2) = p.bbox
                     
-                    if min_width <= y2-y1 < min_width + 15:
+                    if min_width <= y2-y1 <= min_width + 20:
                         box.append(p.bbox)
-                        cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
+                        #cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
                         #print(p.bbox)
                         #subim = img[x1:x2, y1:y2, :]
                         #cv2.imshow('tags', subim)
                         #cv2.waitKey(0)
-                cv2.imwrite('immm.jpg', im_copy)
+                #cv2.imwrite(im_name+'.jpg', im_copy)
                 if len(box) > 0:
                     iptags = []
                     ipboxes = []
@@ -399,7 +390,7 @@ def detecting(im_url, debug=False):
                             submask = mask_lower[y1:y2, b[1]-5:b[3]+5]
                             if DEBUG:
                                 result_image_path = os.path.join(DEBUG_DIR, im_name+'_'+str(i)+'_'+'tag.jpg')
-                                cv2.imwrite(result_image_path, subim)
+                                cv2.imwrite(result_image_path, submask)
                             iptags.append(subim)
                             ipmasks.append(submask)
                             ipboxes.append(b)
@@ -409,24 +400,23 @@ def detecting(im_url, debug=False):
                             start_u = int(round(up_u - box[i+1][2]/height_u))
                             u.append((start_u, end_u))
                             #print(end_u, start_u)
-                            #print('equipment '+str(i/2)+': ', np.arange(start_u, end_u+1))
 
-                    detect = detect_tags(type_tag='ip',ratio=0.6,thresh_w=[17, 40],thresh_h=[44, 60],thresh_gap=50,DEBUG=DEBUG,DEBUG_DIR=DEBUG_DIR)
+                    detect = detect_tags(type_tag='ip',ratio=0.6,thresh_w=[15, 40],thresh_h=[40, 62],thresh_gap=47,DEBUG=DEBUG,DEBUG_DIR=DEBUG_DIR)
                     result = detect.detect_num(iptags, im_name, ipmasks)
-                    # visulize
-                    #for ind, res in enumerate(result):
-                    #    u_list = np.arange(u[ind][0], u[ind][1]+1)
-                    #    point = ipboxes[ind][0:2]
-                    #    cv2.putText(image, "IP: {}, U: {}".format(res, u_list), (image.shape[1]/3,point[0]+u_point+80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                    #savepath = 'result/'+im_name+'.jpg'
-                    #cv2.imwrite(savepath, image)
-
-                    for i, res in enumerate(result):
-                        final_result.append({'ID':res, 'U':u[i]})
+                    
+                    if result:
+                        for ind, res in enumerate(result):
+                            u_list = np.arange(u[ind][0], u[ind][1]+1)
+                            cv2.putText(im, 'ID: {}, U: {}'.format(res, u_list), (ipboxes[ind][1], u_point+ipboxes[ind][0]+80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                            final_result.append({'ID':res, 'U':u[ind]})  
+                        #cv2.imwrite(image_file, im)
+        #else:
+        #    cv2.imwrite(image_file, im)
 
     else:
         # the image taken by the camera below
         # get jigui region and max u and min u
+        print('low...........................................................')
         ok, img, up_u, low_u, u_point = findregion_below(im, im_name, DEBUG)
         if ok:
             print('start detect IP..................')
@@ -453,7 +443,7 @@ def detecting(im_url, debug=False):
             for p in pro:
                 (x1, y1, x2, y2) = p.bbox
                 width = y2 - y1
-                if 250 > width > 180:
+                if 270 > width > 180:
                     if min_width > width:
                         min_width = width
             print('min_width:', min_width)
@@ -461,14 +451,14 @@ def detecting(im_url, debug=False):
             im_copy = img.copy()
             for p in pro:
                 (x1, y1, x2, y2) = p.bbox         
-                if min_width <= y2-y1 < min_width + 20:
+                if min_width <= y2-y1 <= min_width + 23:
                     box.append(p.bbox)
-                    cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
+                    #cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
                     #print(p.bbox)
                     #subim = img[x1:x2, y1:y2, :]
                     #cv2.imshow('tags', subim)
                     #cv2.waitKey(0)
-            cv2.imwrite(im_name+'.jpg', im_copy)
+            #cv2.imwrite(im_name+'.jpg', im_copy)
             if len(box) > 0:
                 iptags = []
                 ipboxes = []
@@ -482,7 +472,7 @@ def detecting(im_url, debug=False):
                         submask = mask_lower[y1:y2, b[1]-5:b[3]+5]
                         if DEBUG:
                             result_image_path = os.path.join(DEBUG_DIR, im_name+'_'+str(i)+'_'+'tag.jpg')
-                            cv2.imwrite(result_image_path, subim)
+                            cv2.imwrite(result_image_path, submask)
                         iptags.append(subim)
                         ipmasks.append(submask)
                         ipboxes.append(b)
@@ -490,13 +480,18 @@ def detecting(im_url, debug=False):
                         end_u = int(round(up_u - b[0]/height_u) -1)
                         start_u = int(round(up_u - box[i+1][2]/height_u))
                         u.append((start_u, end_u))
-                detect = detect_tags(type_tag = 'ip',ratio=0.6,thresh_w=[16, 44],thresh_h=[42, 60],thresh_gap=48,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+                detect = detect_tags(type_tag = 'ip',ratio=0.6,thresh_w=[14, 44],thresh_h=[42, 60],thresh_gap=48,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
                 result = detect.detect_num(iptags, im_name, ipmasks)
-                   
-                for i, res in enumerate(result):
-                     final_result.append({'ID':res, 'U':u[i]})
-    print('final result: ', final_result)
-
-    return ok, final_result
+                print('u_point',u_point)
+                if result:
+                    for ind, res in enumerate(result):
+                        u_list = np.arange(u[ind][0], u[ind][1]+1)
+                        cv2.putText(im, 'ID: {}, U: {}'.format(res, u_list), (ipboxes[ind][1], u_point+ipboxes[ind][0]+80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                        final_result.append({'ID':res, 'U':u[ind]})
+                    #image_file = os.path.join('code/result', im_name + '.jpg')
+                    #cv2.imwrite(image_file, im)
+    #print('final result: ', final_result)
+    cv2.imwrite(image_file, im)
+    return ok, final_result, image_file
 
 
