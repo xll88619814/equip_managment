@@ -11,6 +11,7 @@ from bottle import route, run
 import json
 from db_connecttion.MySqlConn_gxxj import Mysql
 from code.gettags import detecting
+from fdfs_client.client import *
 
 
 config.DATA_PATH
@@ -22,6 +23,32 @@ def get_bean(file_id):
     im_file = result["file_url"][1:] if result["file_url"][0]=='/' else result["file_url"] 
     im_file = os.path.join(config.DATA_PATH, im_file)
     return im_file
+
+
+def update_bean(file_id, upload_url):
+    mysql = Mysql()
+    sql = "UPDATE  ir_file_info SET detect_result_url = %s, detect_flag = 1   WHERE file_id = %s "
+    param = (upload_url, file_id)
+    result = mysql.update(sql, param)
+    if result:
+        return result
+    else:
+        return False
+
+
+def upload_file(file_address):
+    print("upload file:")
+    print(file_address)
+    client = Fdfs_client(config.FDFS_CONFIG)
+    result = client.upload_by_filename(file_address)
+    time.sleep(2)
+    print("fdfs upload")
+    print(result)
+    upload_url = result['Remote file_id']
+    return upload_url
+
+
+
 
 
 @route("/equip/:args")
@@ -41,6 +68,11 @@ def index(args):
         
     final_result["result"]=str(ok)
     final_result["details"] = final_details
+
+    detect_url = upload_file(result_file)
+    print("detect_url : {}".format(detect_url))
+    update_result = update_bean(file_id,detect_url)
+    print("update_result : {}".format(update_result))
     
     return json.dumps(final_result)
 
