@@ -32,8 +32,17 @@ def index(args):
     im_file = get_bean(file_id)
     print("image file: {}".format(im_file))
 
-    result = detecting(im_file, im_type)
-    return json.dumps(result)
+    ok, details,result_file  = detecting(im_file, im_type)
+    final_result = {}
+    final_details =[]
+    for d in details:
+        d["U"] = ",".join(map(str, d["U"]))
+        final_details.append(d)
+        
+    final_result["result"]=str(ok)
+    final_result["details"] = final_details
+    
+    return json.dumps(final_result)
 
 
 run(host='218.85.116.194', port=2334)
