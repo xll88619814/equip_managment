@@ -50,12 +50,13 @@ def selectu(u_num, u_boxes):
     unum = []
     uboxes = []
     for ind, u in enumerate(u_num):
-        if len(u) > 2:
-            unum.append(u[:2])
-            uboxes.append(u_boxes[ind])
-        elif len(u) == 2:
-            unum.append(u)
-            uboxes.append(u_boxes[ind])
+        if int(u) <= 42 and int(u) >= 5:
+            if len(u) > 2:
+                unum.append(u[:2])
+                uboxes.append(u_boxes[ind])
+            elif len(u) == 2:
+                unum.append(u)
+                uboxes.append(u_boxes[ind])
     clusters = []
     cluster = []
     cluster.append((unum[0], uboxes[0]))
@@ -199,7 +200,7 @@ def findregion(im, im_name, DEBUG):
 
 def findregion_below(im, im_name, DEBUG):
     # Find u tags in below image
-    lower_hue_low = [23, 127, 70]
+    lower_hue_low = [23, 102, 70]
     lower_hue_high = [31, 255, 230]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
@@ -233,7 +234,7 @@ def findregion_below(im, im_name, DEBUG):
         cv2.imwrite(result_image_path, im_copy)
     #print('utags:',len(utags))
 
-    detect = detect_tags(type_tag ='u',ratio=0.6,thresh_w =[15, 45],thresh_h=[46, 70],thresh_gap=55,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+    detect = detect_tags(type_tag ='u',ratio=0.6,thresh_w =[15, 45],thresh_h=[46, 80],thresh_gap=55,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
     u_num = detect.detect_num(utags, im_name, umasks)
     print('u_num:',u_num)
     if u_num == ['']:
@@ -306,11 +307,11 @@ def isswitch(im, im_name, DEBUG):
     return switch, switchboxes, switchtags, switchmasks
 
 
-def detecting(im_url, image_type, debug=None):
+def detecting(im_url, debug=None):
     im = cv2.imread(im_url)
-    #image_type = im_url.split('/')[-1].split('_')[1].split('.')[0]
+    image_type = im_url.split('/')[-1].split('_')[1].split('.')[0]
     im_name = im_url.split('/')[-1].split('.')[0]
-    image_file = os.path.join('/opt/gxxj_robot/temp', im_name + '.jpg')
+    image_file = os.path.join('code/result', im_name + '.jpg')
 
     DEBUG = debug
     image = im.copy()
@@ -488,8 +489,7 @@ def detecting(im_url, image_type, debug=None):
                         u_list = np.arange(u[ind][0], u[ind][1]+1)
                         cv2.putText(im, 'ID: {}, U: {}'.format(res, u_list), (ipboxes[ind][1], u_point+ipboxes[ind][0]+80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                         final_result.append({'ID':res, 'U':u[ind]})
-                    #image_file = os.path.join('code/result', im_name + '.jpg')
-                    #cv2.imwrite(image_file, im)
+                    
     #print('final result: ', final_result)
     cv2.imwrite(image_file, im)
     return ok, final_result, image_file
