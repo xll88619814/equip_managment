@@ -310,11 +310,11 @@ def isswitch(im, im_name, DEBUG):
     return switch, switchboxes, switchtags, switchmasks
 
 
-def detecting(im_url, debug=None):
+def detecting(im_url, image_type, debug=None):
     im = cv2.imread(im_url)
-    image_type = im_url.split('/')[-1].split('_')[1].split('.')[0]
+    #image_type = im_url.split('/')[-1].split('_')[1].split('.')[0]
     im_name = im_url.split('/')[-1].split('.')[0]
-    image_file = os.path.join('code/result', im_name + '.jpg')
+    image_file = os.path.join('/opt/gxxj_robot/temp', im_name + '.jpg')
 
     DEBUG = debug
     image = im.copy()
@@ -336,9 +336,7 @@ def detecting(im_url, debug=None):
                 for ind, res in enumerate(result):
                     if len(res) >= 2:
                         cv2.putText(im, 'ID: '+res[0]+' U: '+res[1], (switchboxes[ind][1], u_point+switchboxes[ind][0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                        final_result.append({'ID':res[0], 'U':res[1]})
-                image_file = os.path.join('code/result', im_name + '.jpg')
-                cv2.imwrite(image_file, im)
+                        final_result.append({'ID':res[0], 'U':res[1]})       
         elif switch == False and ok ==True :
                 print('start detect IP..................')
                 sum_u = up_u - low_u
