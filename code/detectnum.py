@@ -183,15 +183,16 @@ class detect_tags:
 
             # remain good contours
             contours = self.selectcont(cnts, blurred)
+            max_w = 0
+            for i, c in enumerate(contours[1:]):
+                if max_w < (c[0] - contours[i][0]):
+                        max_w = c[0] - contours[i][0]
             drawim = blurred.copy()
             if self.type == 'switch':
                 cluster = ''
                 clusters = []
                 clusters.append('SWITCH')
-                max_w = 0
-                for i, c in enumerate(contours[1:]):
-                    if max_w < (c[0] - contours[i][0]):
-                        max_w = c[0] - contours[i][0]
+                
                 for i, c in enumerate(contours):
                     (x, y, w, h) = c
                     #print('digit:',(x, y, w, h))
@@ -261,7 +262,7 @@ class detect_tags:
                     if i == 0:
                         cluster += str(digit)
                     else:
-                        if x - contours[i-1][0] <= self.thresh_gap:
+                        if x - contours[i-1][0] < self.thresh_gap:
                             cluster += str(digit)
                         else:
                             clusters += cluster

@@ -203,7 +203,7 @@ def findregion(im, im_name, DEBUG):
 
 def findregion_below(im, im_name, DEBUG):
     # Find u tags in below image
-    lower_hue_low = [23, 102, 70]
+    lower_hue_low = [20, 102, 70]
     lower_hue_high = [31, 255, 230]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
@@ -237,8 +237,11 @@ def findregion_below(im, im_name, DEBUG):
         cv2.imwrite(result_image_path, im_copy)
     #print('utags:',len(utags))
 
-    detect = detect_tags(type_tag ='u',ratio=0.6,thresh_w =[15, 45],thresh_h=[46, 80],thresh_gap=55,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
-    u_num = detect.detect_num(utags, im_name, umasks)
+    if utags == []:
+        return False, [], [], [], []
+    else:
+        detect = detect_tags(type_tag ='u',ratio=0.6,thresh_w =[15, 45],thresh_h=[46, 80],thresh_gap=55,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+        u_num = detect.detect_num(utags, im_name, umasks)
     print('u_num:',u_num)
     if u_num == ['']:
         return False, [], [], [], []
@@ -310,9 +313,9 @@ def isswitch(im, im_name, DEBUG):
     return switch, switchboxes, switchtags, switchmasks
 
 
-def detecting(im_url, image_type, debug=None):
+def detecting(im_url, debug=None):
     im = cv2.imread(im_url)
-    #image_type = im_url.split('/')[-1].split('_')[1].split('.')[0]
+    image_type = im_url.split('/')[-1].split('_')[1].split('.')[0]
     im_name = im_url.split('/')[-1].split('.')[0]
     image_file = os.path.join('/opt/gxxj_robot/temp', im_name + '.jpg')
 
@@ -335,8 +338,8 @@ def detecting(im_url, image_type, debug=None):
             if result:
                 for ind, res in enumerate(result):
                     if len(res) >= 2:
-                        cv2.putText(im, 'ID: '+res[0]+' U: '+res[1], (switchboxes[ind][1], u_point+switchboxes[ind][0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                        final_result.append({'ID':res[0], 'U':res[1]})       
+                        cv2.putText(im, 'IP: '+res[0]+' U: '+res[1], (switchboxes[ind][1], u_point+switchboxes[ind][0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                        final_result.append({'IP':res[0], 'U':res[1]})       
         elif switch == False and ok ==True :
                 print('start detect IP..................')
                 sum_u = up_u - low_u
@@ -409,8 +412,8 @@ def detecting(im_url, image_type, debug=None):
                     if result:
                         for ind, res in enumerate(result):
                             u_list = np.arange(u[ind][0], u[ind][1]+1)
-                            cv2.putText(im, 'ID: {}, U: {}'.format(res, u_list), (ipboxes[ind][1], u_point+ipboxes[ind][0]+80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                            final_result.append({'ID':res, 'U':u[ind]})  
+                            cv2.putText(im, 'IP: {}, U: {}'.format(res, u_list), (ipboxes[ind][1], u_point+ipboxes[ind][0]+80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                            final_result.append({'IP':res, 'U':u[ind]})  
                         #cv2.imwrite(image_file, im)
         #else:
         #    cv2.imwrite(image_file, im)
@@ -428,7 +431,7 @@ def detecting(im_url, image_type, debug=None):
 
             # Find IP regions
             lower_hue_low = [23, 127, 50]
-            lower_hue_high = [31, 255, 255]
+            lower_hue_high = [30, 255, 255]
             hsv_image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
             kernel_size = (10,10)
@@ -482,14 +485,14 @@ def detecting(im_url, image_type, debug=None):
                         end_u = int(round(up_u - b[0]/height_u) -1)
                         start_u = int(round(up_u - box[i+1][2]/height_u))
                         u.append((start_u, end_u))
-                detect = detect_tags(type_tag = 'ip',ratio=0.6,thresh_w=[14, 44],thresh_h=[42, 60],thresh_gap=48,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+                detect = detect_tags(type_tag = 'ip',ratio=0.6,thresh_w=[14, 44],thresh_h=[42, 60],thresh_gap=46,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
                 result = detect.detect_num(iptags, im_name, ipmasks)
                 print('u_point',u_point)
                 if result:
                     for ind, res in enumerate(result):
                         u_list = np.arange(u[ind][0], u[ind][1]+1)
-                        cv2.putText(im, 'ID: {}, U: {}'.format(res, u_list), (ipboxes[ind][1], u_point+ipboxes[ind][0]+80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                        final_result.append({'ID':res, 'U':u[ind]})
+                        cv2.putText(im, 'IP: {}, U: {}'.format(res, u_list), (ipboxes[ind][1], u_point+ipboxes[ind][0]+80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                        final_result.append({'IP':res, 'U':u[ind]})
                     
     #print('final result: ', final_result)
     cv2.imwrite(image_file, im)
