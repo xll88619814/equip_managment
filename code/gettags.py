@@ -50,12 +50,15 @@ def selectu(u_num, u_boxes):
     unum = []
     uboxes = []
     for ind, u in enumerate(u_num):
-        if int(u) <= 42 and int(u) >= 5:
-            if len(u) > 2:
-                unum.append(u[:2])
+        if len(u) > 2:
+            num = u[:2]
+            if int(num) <= 42 and int(num) >= 5:
+                unum.append(num)
                 uboxes.append(u_boxes[ind])
-            elif len(u) == 2:
-                unum.append(u)
+        elif len(u) == 2:
+            num = u
+            if int(num) <= 42 and int(num) >= 5:
+                unum.append(num)
                 uboxes.append(u_boxes[ind])
     clusters = []
     cluster = []
@@ -325,7 +328,7 @@ def detecting(im_url, debug=None):
         if switch and ok == False:
             print('switch.....................................')
             ok = True
-            detect = detect_tags(type_tag ='switch',ratio=0.6,thresh_w=[25, 65],thresh_h=[40, 65],thresh_gap=75,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+            detect = detect_tags(type_tag ='switch',ratio=0.6,thresh_w=[25, 60],thresh_h=[40, 65],thresh_gap=75,DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
             result = detect.detect_num(switchtags, im_name, switchmasks)
             print(result)
             # visulize
