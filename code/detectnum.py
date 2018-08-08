@@ -58,10 +58,10 @@ class detect_tags:
 
     def selectcont(self, cnts, blurred):
         contours = []
-    	i = 0
+        i = 0
         width = blurred.shape[1]
-    	for (c, _) in cnts:
-      	    (x, y, w, h) = cv2.boundingRect(c)
+        for (c, _) in cnts:
+            (x, y, w, h) = cv2.boundingRect(c)
 
             if self.thresh_w[0] <= w <= self.thresh_w[1] and self.thresh_h[0] <= h <= self.thresh_h[1] and x > 0 and h >= 0:
                 if w*1.0/h < self.ratio:
@@ -202,15 +202,15 @@ class detect_tags:
 
                     # HOG + SVM
                     roi = cv2.resize(roi, (60,80), interpolation=cv2.INTER_CUBIC)
-	            thresh = roi.copy()
-	            T = mahotas.thresholding.otsu(roi)
-	            thresh[thresh > T] = 255
+                    thresh = roi.copy()
+                    T = mahotas.thresholding.otsu(roi)
+                    thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
-	            thresh = cv2.bitwise_not(thresh)
+                    thresh = cv2.bitwise_not(thresh)
                     cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
-	            digit = self.model.predict([hist])[0]
-                    
+                    digit = self.model.predict([hist])[0]
+
                     if digit >= 10:
                         digit = self.dict[digit]
                     else:
@@ -247,14 +247,14 @@ class detect_tags:
 
                     # HOG + SVM
                     roi = cv2.resize(roi, (60,80), interpolation=cv2.INTER_CUBIC)
-	            thresh = roi.copy()
-	            T = mahotas.thresholding.otsu(roi)
-	            thresh[thresh > T] = 255
+                    thresh = roi.copy()
+                    T = mahotas.thresholding.otsu(roi)
+                    thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
-	            thresh = cv2.bitwise_not(thresh)
-                    cv2.imwrite('code/train_nummodel/number/'+image_name+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    thresh = cv2.bitwise_not(thresh)
+                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
-	            digit = self.model.predict([hist])[0]
+                    digit = self.model.predict([hist])[0]
                     #print('digit',digit)
                     #cv2.rectangle(drawim, (x, y), (x + w, y + h), (0, 0, 255), 1)
                     #cv2.putText(drawim, str(digit), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
