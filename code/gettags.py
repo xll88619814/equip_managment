@@ -142,11 +142,13 @@ def findUregion(im, lower_hue_low, lower_hue_high, u_y, u_x, im_name, DEBUG):
         (x1, y1, x2, y2) = p.bbox
         if u_y[0] < y2 - y1 < u_y[1] and u_x[0] < x2 - x1 < u_x[1]:  # and y2<0.9*im_width and y1>0.1*im_width and x1>0.1*im_height:
             i += 1
-            utags.append(im[x1 - 5:x2 + 5, y1 - 5:y2 + 5, :])
+            x = 0 if x1-5 <= 0 else x1-5
+            y = 0 if y1-5 <= 0 else y1-5
+            utags.append(im[x:x2 + 5, y:y2 + 5, :])
             uboxes.append(p.bbox)
-            umasks.append(mask_lower[x1 - 5:x2 + 5, y1 - 5:y2 + 5])
+            umasks.append(mask_lower[x:x2 + 5, y:y2 + 5])
             cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
-            #print('u:', y2 - y1, x2 - x1)
+            #print('u:', p.bbox)
     if DEBUG:
         result_image_path = os.path.join(DEBUG_DIR, im_name + ".jpg")
         cv2.imwrite(result_image_path, im_copy)
@@ -155,8 +157,7 @@ def findUregion(im, lower_hue_low, lower_hue_high, u_y, u_x, im_name, DEBUG):
     if utags == []:
         return False, [], [], [], []
     else:
-        detect = detect_tags(type_tag='u', ratio=0.6, thresh_w=[15, 52], thresh_h=[45, 80], thresh_gap=55, DEBUG=DEBUG,
-                             DEBUG_DIR=DEBUG_DIR)
+        detect = detect_tags(type_tag='u', ratio=0.6, thresh_w=[15, 52], thresh_h=[45, 80], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
         u_num = detect.detect_num(utags, im_name, umasks)
     print('u_num:', u_num)
     if u_num == ['']:
@@ -278,7 +279,7 @@ def findIPregion(img, im, up_u, low_u, u_point, lower_hue_low, lower_hue_high, i
                 submask = mask_lower[y1:y2, b[1]-5:b[3]+5]
                 if DEBUG:
                     result_image_path = os.path.join(DEBUG_DIR, im_name+'_'+str(i)+'_'+'tag.jpg')
-                    cv2.imwrite(result_image_path, submask)
+                    cv2.imwrite(result_image_path, subim)
                 iptags.append(subim)
                 ipmasks.append(submask)
                 ipboxes.append(b)
@@ -289,8 +290,7 @@ def findIPregion(img, im, up_u, low_u, u_point, lower_hue_low, lower_hue_high, i
                 u.append((start_u, end_u))
                 #print(end_u, start_u)
 
-        detect = detect_tags(type_tag='ip', ratio=0.6, thresh_w=[14, 44], thresh_h=[40, 62],
-                             thresh_gap=46, DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+        detect = detect_tags(type_tag='ip', ratio=0.6, thresh_w=[14, 44], thresh_h=[40, 62], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
         result = detect.detect_num(iptags, im_name, ipmasks)
 
         if result:
@@ -305,10 +305,8 @@ def findIPregion(img, im, up_u, low_u, u_point, lower_hue_low, lower_hue_high, i
 
 def detecting(im_url, image_type, debug=None):
     im = cv2.imread(im_url)
-    #image_type = im_url.split('/')[-1].split('_')[1].split('.')[0]
     im_name = im_url.split('/')[-1].split('.')[0]
     image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
-    #image_file = os.path.join('code/result', im_name + '.jpg')
 
     DEBUG = debug
     final_result = []
@@ -326,8 +324,7 @@ def detecting(im_url, image_type, debug=None):
         if switch and ok == False:
             print('switch.....................................')
             ok = True
-            detect = detect_tags(type_tag ='switch', ratio=0.6, thresh_w=[25, 60], thresh_h=[40, 65],
-                                 thresh_gap=75, DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+            detect = detect_tags(type_tag ='switch', ratio=0.6, thresh_w=[25, 60], thresh_h=[40, 65], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
             result = detect.detect_num(switchtags, im_name, switchmasks)
             print(result)
             # visulize

@@ -11,7 +11,7 @@ from ImagePreprocessing import pre_proc
 
 
 class detect_tags:
-    def __init__(self, type_tag, ratio, thresh_w, thresh_h, thresh_gap, DEBUG, DEBUG_DIR):
+    def __init__(self, type_tag, ratio, thresh_w, thresh_h, DEBUG, DEBUG_DIR):
         modelpath = 'code/train_nummodel/models/num_char.cpickle'
         model = open(modelpath).read()
         self.model = cPickle.loads(model)
@@ -22,7 +22,6 @@ class detect_tags:
         self.ratio = ratio 
         self.thresh_w = thresh_w
         self.thresh_h = thresh_h
-        self.thresh_gap = thresh_gap
         self.DEBUG = DEBUG
         self.DEBUG_DIR = DEBUG_DIR
         
@@ -236,6 +235,10 @@ class detect_tags:
                 
                 #cv2.imwrite('result/'+ image_name+'_'+str(ind)+'.jpg', drawim)
             else:
+                sum_gap = 0
+                for i, c in enumerate(contours[1:]):
+                    sum_gap += abs(c[0] - contours[i][0] - contours[i][2])
+                thresh_gap = sum_gap/(len(contours)-1) + 5
                 cluster = ''
                 clusters = ''
                 for i, c in enumerate(contours):
@@ -262,7 +265,7 @@ class detect_tags:
                     if i == 0:
                         cluster += str(digit)
                     else:
-                        if x - contours[i-1][0] < self.thresh_gap:
+                        if x - contours[i-1][0] - contours[i-1][2] < thresh_gap:
                             cluster += str(digit)
                         else:
                             clusters += cluster
