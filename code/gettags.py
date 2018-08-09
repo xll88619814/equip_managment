@@ -140,7 +140,7 @@ def findUregion(im, lower_hue_low, lower_hue_high, u_y, u_x, im_name, DEBUG):
     i = 0
     for ind, p in enumerate(pro):
         (x1, y1, x2, y2) = p.bbox
-        if u_y[0] < y2 - y1 < u_y[1] and u_x[0] < x2 - x1 < u_x[1]:  # and y2<0.9*im_width and y1>0.1*im_width and x1>0.1*im_height:
+        if u_y[0] <= y2 - y1 <= u_y[1] and u_x[0] <= x2 - x1 <= u_x[1]:  # and y2<0.9*im_width and y1>0.1*im_width and x1>0.1*im_height:
             i += 1
             x = 0 if x1-5 <= 0 else x1-5
             y = 0 if y1-5 <= 0 else y1-5
@@ -307,6 +307,7 @@ def detecting(im_url, image_type, debug=None):
     im = cv2.imread(im_url)
     im_name = im_url.split('/')[-1].split('.')[0]
     image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
+    #image_file = os.path.join('code/result', im_name + '.jpg')
 
     DEBUG = debug
     final_result = []
@@ -317,7 +318,7 @@ def detecting(im_url, image_type, debug=None):
     if image_type == '0':
         lower_hue_low = [23, 127, 70]
         lower_hue_high = [31, 255, 230]
-        ok, region, up_u, low_u, u_point = findUregion(im, lower_hue_low, lower_hue_high, [40, 60], [36, 50], im_name,
+        ok, region, up_u, low_u, u_point = findUregion(im, lower_hue_low, lower_hue_high, [40, 60], [35, 50], im_name,
                                                        DEBUG)
         #ok, img, up_u, low_u, u_point = findregion(im, im_name, DEBUG)
         print('switch: ', switch)
