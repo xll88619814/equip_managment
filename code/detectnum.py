@@ -90,7 +90,7 @@ class detect_tags:
                                 contours.append((x, y, w, h))
                                 prerect = (x, y, w, h) 
                                 i = i + 1                  
-            elif self.thresh_h[0] <= h <= self.thresh_h[1] and self.thresh_w[1] <= w <= width/2 and x > 0 and y >=0:
+            elif self.thresh_h[0] <= h <= self.thresh_h[1] and self.thresh_w[1] <= w <= 2*self.thresh_w[1] and x > 0 and y >=0:
                 #print(w, h)
                 if i == 0:
                     #print('subim:', x, y, w, h)
@@ -215,8 +215,7 @@ class detect_tags:
                     else:
                         digit = str(digit)
                     #print('digit:',digit)
-                    #cv2.rectangle(drawim, (x, y), (x + w, y + h), (0, 0, 255), 1)
-                    #cv2.putText(drawim, digit, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
                     if i == 0:
                         cluster += digit
                     else:
@@ -232,13 +231,15 @@ class detect_tags:
                 clusters.append(cluster)
                 del clusters[1:len(clusters)-1]
                 #print('clusters:',clusters)
-                
-                #cv2.imwrite('result/'+ image_name+'_'+str(ind)+'.jpg', drawim)
+
             else:
                 sum_gap = 0
                 for i, c in enumerate(contours[1:]):
                     sum_gap += abs(c[0] - contours[i][0] - contours[i][2])
-                thresh_gap = sum_gap/(len(contours)-1) + 5
+                if len(contours) > 1:
+                    thresh_gap = sum_gap/(len(contours)-1) + 5
+                else:
+                    thresh_gap = 0
                 cluster = ''
                 clusters = ''
                 for i, c in enumerate(contours):
@@ -259,8 +260,6 @@ class detect_tags:
                     hist = self.hog.describe(thresh)
                     digit = self.model.predict([hist])[0]
                     #print('digit',digit)
-                    #cv2.rectangle(drawim, (x, y), (x + w, y + h), (0, 0, 255), 1)
-                    #cv2.putText(drawim, str(digit), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     
                     if i == 0:
                         cluster += str(digit)
@@ -274,7 +273,6 @@ class detect_tags:
                             cluster += str(digit)
                 clusters += cluster
                 #print(clusters)
-                #cv2.imwrite('result/'+ image_name+'_'+self.type+'_'+str(ind)+'.jpg', drawim)
             result.append(clusters)
 
         return result

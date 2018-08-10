@@ -140,7 +140,7 @@ def findUregion(im, lower_hue_low, lower_hue_high, u_y, u_x, im_name, DEBUG):
     i = 0
     for ind, p in enumerate(pro):
         (x1, y1, x2, y2) = p.bbox
-        if u_y[0] <= y2 - y1 <= u_y[1] and u_x[0] <= x2 - x1 <= u_x[1]:  # and y2<0.9*im_width and y1>0.1*im_width and x1>0.1*im_height:
+        if u_y[0] <= y2 - y1 <= u_y[1] and u_x[0] <= x2 - x1 <= u_x[1] and p.area*1.0/((x2-x1)*(y2-y1)) > 0.6:  # and y2<0.9*im_width and y1>0.1*im_width and x1>0.1*im_height:
             i += 1
             x = 0 if x1-5 <= 0 else x1-5
             y = 0 if y1-5 <= 0 else y1-5
@@ -148,7 +148,9 @@ def findUregion(im, lower_hue_low, lower_hue_high, u_y, u_x, im_name, DEBUG):
             uboxes.append(p.bbox)
             umasks.append(mask_lower[x:x2 + 5, y:y2 + 5])
             cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
-            #print('u:', p.bbox)
+            #cv2.imwrite(im_name+'_mask_'+str(ind)+'.jpg', mask_lower[x:x2 + 5, y:y2 + 5])
+            #cv2.imwrite(im_name+'_tags_'+str(ind)+'.jpg', im[x:x2 + 5, y:y2 + 5])
+            #print('u:', p.bbox, p.area*1.0/((x2-x1)*(y2-y1)))
     if DEBUG:
         result_image_path = os.path.join(DEBUG_DIR, im_name + ".jpg")
         cv2.imwrite(result_image_path, im_copy)
@@ -318,21 +320,20 @@ def detecting(im_url, image_type, debug=None):
     if image_type == '0':
         lower_hue_low = [23, 127, 70]
         lower_hue_high = [31, 255, 230]
-        ok, region, up_u, low_u, u_point = findUregion(im, lower_hue_low, lower_hue_high, [40, 60], [35, 50], im_name,
+        ok, region, up_u, low_u, u_point = findUregion(im, lower_hue_low, lower_hue_high, [40, 60], [35, 55], im_name,
                                                        DEBUG)
         #ok, img, up_u, low_u, u_point = findregion(im, im_name, DEBUG)
         print('switch: ', switch)
         if switch and ok == False:
             print('switch.....................................')
             ok = True
-            detect = detect_tags(type_tag ='switch', ratio=0.6, thresh_w=[25, 60], thresh_h=[40, 65], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+            detect = detect_tags(type_tag ='switch', ratio=0.6, thresh_w=[25, 60], thresh_h=[41, 65], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
             result = detect.detect_num(switchtags, im_name, switchmasks)
-            print(result)
             # visulize
             if result:
                 for ind, res in enumerate(result):
                     if len(res) >= 2:
-                        cv2.putText(im, 'IP: '+res[0]+' U: '+res[1], (switchboxes[ind][1], u_point+switchboxes[ind][0]),
+                        cv2.putText(im, 'IP: '+res[0]+' U: '+res[1], (switchboxes[ind][1], switchboxes[ind][0]),
                                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                         final_result.append({'IP':res[0], 'U':[res[1]]})
         elif switch == False and ok ==True :
