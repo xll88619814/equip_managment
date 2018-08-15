@@ -11,17 +11,18 @@ from ImagePreprocessing import pre_proc
 
 
 class detect_tags:
-    def __init__(self, type_tag, ratio, thresh_w, thresh_h, DEBUG, DEBUG_DIR):
+    def __init__(self, type_tag, ratio, thresh_w, thresh_h, count, DEBUG, DEBUG_DIR):
         modelpath = 'code/train_nummodel/models/num_char.cpickle'
         model = open(modelpath).read()
         self.model = cPickle.loads(model)
 
         self.hog = HOG(orientations = 18, pixelsPerCell = (10, 10), cellsPerBlock = (1,1), transform_sqrt = True, block_norm="L2")
-        self.dict = {10:'C',11:'H',12:'I',13:'S',14:'T',15:'W'}
+        self.dict = {10:'C',11:'H',12:'S',13:'T',14:'W'}
         self.type = type_tag
         self.ratio = ratio 
         self.thresh_w = thresh_w
         self.thresh_h = thresh_h
+        self.count = count
         self.DEBUG = DEBUG
         self.DEBUG_DIR = DEBUG_DIR
         
@@ -58,69 +59,56 @@ class detect_tags:
     def selectcont(self, cnts, blurred):
         contours = []
         i = 0
-        width = blurred.shape[1]
+        height, width = blurred.shape[0:2]
+        if self.type == 'ip':
+            minx = 0.05 * width
+            maxx = 0.95 * width
+        else:
+            minx = 0.15 * width
+            maxx = 0.9 * width
+
         for (c, _) in cnts:
             (x, y, w, h) = cv2.boundingRect(c)
-
-            if self.thresh_w[0] <= w <= self.thresh_w[1] and self.thresh_h[0] <= h <= self.thresh_h[1] and x > 0 and h >= 0:
-                if w*1.0/h < self.ratio:
-                    x = x -  int(ceil((h*self.ratio-w)/2))
-                    w = int(ceil(h * self.ratio))
-                    #print(x,w)
-                if x > 0 and y >= 0:
-                    if i == 0:
-                        contours.append((x, y, w, h))
-                        prerect = (x, y, w, h)
-                        i += 1
-                    else:
-                        iou =  self.IOU(prerect, (x,y,w,h))
-                        if iou < 0.2:
+            if x >= minx and y >= 0 and x+w < maxx and y+h < height-5:
+                if self.thresh_w[0] <= w <= self.thresh_w[1] and self.thresh_h[0] <= h <= self.thresh_h[1]:
+                    if w*1.0/h < self.ratio:
+                        x = x -  int(ceil((h*self.ratio-w)/2))
+                        w = int(ceil(h * self.ratio))
+                        #print(x,w)
+                    if x > 0 and y >= 0:
+                        if i == 0:
                             contours.append((x, y, w, h))
                             prerect = (x, y, w, h)
                             i += 1
                         else:
-                            if prerect[2]*prerect[3] < w*h:
-                                if prerect in contours:
-                                    contours.remove(prerect)
-                                    i = i - 1
-                                else:
-                                    for k in range(count):
-                                        del contours[i-1-k]
-                                    i = i - count
+                            iou =  self.IOU(prerect, (x,y,w,h))
+                            if iou < 0.2:
                                 contours.append((x, y, w, h))
-                                prerect = (x, y, w, h) 
-                                i = i + 1                  
-            elif self.thresh_h[0] <= h <= self.thresh_h[1] and self.thresh_w[1] <= w <= 2*self.thresh_w[1] and x > 0 and y >=0:
-                #print(w, h)
-                if i == 0:
-                    #print('subim:', x, y, w, h)
-                    blurr = blurred.copy()
-                    subim = blurr[y:y+h,x:x+w]
-                    #cv2.imshow('im',subim)
-                    #cv2.waitKey(0)
-                    splitimages = get_splitimages(subim)
-                    for j, splitimg in enumerate(splitimages):
-                        h0, w0 = splitimg.shape
-                        if j == 0:
-                            contours.append((x, y , w0, h0))
-                            nextx = x + w0
-                        else:
-                            contours.append((nextx, y , w0, h0))
-                            nextx = nextx + w0
-                    prerect = (x, y , w, h)
-                    i += len(splitimages)
-                    count = len(splitimages)
-                else:
-                    iou =  self.IOU(prerect, (x,y,w,h))
-                    if iou < 0.2:
+                                prerect = (x, y, w, h)
+                                i += 1
+                            else:
+                                if prerect[2]*prerect[3] < w*h:
+                                    if prerect in contours:
+                                        contours.remove(prerect)
+                                        i = i - 1
+                                    else:
+                                        for k in range(count):
+                                            del contours[i-1-k]
+                                        i = i - count
+                                    contours.append((x, y, w, h))
+                                    prerect = (x, y, w, h)
+                                    i = i + 1
+                elif self.thresh_h[0] <= h <= self.thresh_h[1] and self.thresh_w[1] <= w <= 2*self.thresh_w[1]:
+                    #print(w, h)
+                    if i == 0:
+                        #print('subim:', x, y, w, h)
                         blurr = blurred.copy()
                         subim = blurr[y:y+h,x:x+w]
-                        #cv2.imshow('subim',subim)
+                        #cv2.imshow('im',subim)
                         #cv2.waitKey(0)
                         splitimages = get_splitimages(subim)
                         for j, splitimg in enumerate(splitimages):
                             h0, w0 = splitimg.shape
-                            
                             if j == 0:
                                 contours.append((x, y , w0, h0))
                                 nextx = x + w0
@@ -129,18 +117,47 @@ class detect_tags:
                                 nextx = nextx + w0
                         prerect = (x, y , w, h)
                         i += len(splitimages)
-                        count = len(splitimages) 
+                        count = len(splitimages)
+                    else:
+                        iou =  self.IOU(prerect, (x,y,w,h))
+                        if iou < 0.2:
+                            blurr = blurred.copy()
+                            subim = blurr[y:y+h,x:x+w]
+                            #cv2.imshow('subim',subim)
+                            #cv2.waitKey(0)
+                            splitimages = get_splitimages(subim)
+                            for j, splitimg in enumerate(splitimages):
+                                h0, w0 = splitimg.shape
 
-        clusters = []
+                                if j == 0:
+                                    contours.append((x, y , w0, h0))
+                                    nextx = x + w0
+                                else:
+                                    contours.append((nextx, y , w0, h0))
+                                    nextx = nextx + w0
+                            prerect = (x, y, w, h)
+                            i += len(splitimages)
+                            count = len(splitimages)
+
         if not contours == []:
-            clusters.append(contours[0])
-            i = 0 
-            for c in contours[1:]:
-                if abs(c[1]+c[3]/2 - (clusters[i][1]+clusters[i][3]/2)) < 10:
-                    clusters.append(c)
-                    i += 1          
-        return  clusters
- 
+            if not self.count == []:
+                while len(contours) > self.count:
+                    sumy = 0
+                    for c in contours:
+                        centy = c[1] + c[3]*1.0/2
+                        #print('centy', centy)
+                        sumy += centy
+                    meany = sumy*1.0/len(contours)
+                    #print('meany', meany)
+                    dist = []
+                    for c in contours:
+                        dist.append(abs(c[1]+c[3]*1.0/2-meany))
+                    print(dist)
+                    ind = dist.index(max(dist))
+                    del dist[ind]
+                    del contours[ind]
+
+        return contours
 
     def detect_num(self, tags, image_name, masks):
         result = []
@@ -179,19 +196,18 @@ class detect_tags:
                 savepath = os.path.join(self.DEBUG_DIR, image_name+'_'+self.type+'_'+str(ind)+'.jpg')
                 cv2.imwrite(savepath, im_copy)
 
-
             # remain good contours
             contours = self.selectcont(cnts, blurred)
-            max_w = 0
-            for i, c in enumerate(contours[1:]):
-                if max_w < (c[0] - contours[i][0]):
-                        max_w = c[0] - contours[i][0]
-            drawim = blurred.copy()
+
             if self.type == 'switch':
                 cluster = ''
                 clusters = []
                 clusters.append('SWITCH')
-                
+
+                max_w = 0
+                for i, c in enumerate(contours[1:]):
+                    if max_w < (c[0] - contours[i][0]):
+                        max_w = c[0] - contours[i][0]
                 for i, c in enumerate(contours):
                     (x, y, w, h) = c
                     #print('digit:',(x, y, w, h))
@@ -206,7 +222,7 @@ class detect_tags:
                     thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
                     thresh = cv2.bitwise_not(thresh)
-                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
                     digit = self.model.predict([hist])[0]
 
@@ -219,15 +235,12 @@ class detect_tags:
                     if i == 0:
                         cluster += digit
                     else:
-                        if x - contours[i-1][0] < max_w:
+                        if x - contours[i-1][0] < 70:
                             cluster += digit
                         else:
-                            if cluster == 'SWTCH':
-                                cluster = 'SWITCH'
                             clusters.append(cluster)
                             cluster = ''
                             cluster += digit
-                #print('cluster:',cluster)
                 clusters.append(cluster)
                 del clusters[1:len(clusters)-1]
                 #print('clusters:',clusters)

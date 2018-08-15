@@ -1,16 +1,13 @@
-import cv2
+
 import os
+import cv2
 import numpy as np
-from pylab import * 
-import mahotas
-import cPickle
-from PIL import ImageEnhance
-from PIL import Image
-from filters import adjustim
 from skimage import measure
-from detectnum_old import detect_num
-from pyimagesearch.hog import HOG
-from cut_image import get_splitimages
+from detectnum import detect_tags
+from config import config
+
+DEBUG_DIR = os.path.join(os.path.dirname(__file__), 'debug')
+DEBUG = False
 
 def create_hue_mask(image, lower_color, upper_color, kernel_size):
     lower = np.array(lower_color, np.uint8)
@@ -21,41 +18,13 @@ def create_hue_mask(image, lower_color, upper_color, kernel_size):
     if kernel_size:
         kernel=cv2.getStructuringElement(cv2.MORPH_RECT, kernel_size)
         dilated = cv2.dilate(mask, kernel)
-        eroded = cv2.erode(dilated, kernel) 
+        eroded = cv2.erode(dilated, kernel)
         return eroded
     else:
         return mask
-  
-def IOU(Reframe,GTframe):
-    x1 = Reframe[0]
-    y1 = Reframe[1]
-    width1 = Reframe[2]
-    height1 = Reframe[3]
-
-    x2 = GTframe[0]
-    y2 = GTframe[1]
-    width2 = GTframe[2]
-    height2 = GTframe[3]
-
-    endx = max(x1+width1,x2+width2)
-    startx = min(x1,x2)
-    width = width1+width2-(endx-startx)
-
-    endy = max(y1+height1,y2+height2)
-    starty = min(y1,y2)
-    height = height1+height2-(endy-starty)
-
-    if width <=0 or height <= 0:
-        ratio = 0
-    else:
-        Area = width*height
-        Area1 = width1*height1
-        Area2 = width2*height2
-        ratio = Area*1.0/(Area1+Area2-Area)
-    return ratio
 
 
-def detect_redlight(im, debug_dir, im_name):
+def detect_redlight(im, im_name):
     # Find red regions
     red_hue_low = [150, 178, 100]
     red_hue_high = [180, 255, 200]
@@ -63,325 +32,326 @@ def detect_redlight(im, debug_dir, im_name):
     # Get lower hue
     kernel_size = (5,5)
     mask_lower= create_hue_mask(hsv_image, red_hue_low, red_hue_high, kernel_size)
-    if debug_dir:
-        result_image_path = os.path.join(debug_dir, im_name + "_redlight.jpg")
+    if DEBUG:
+        result_image_path = os.path.join(DEBUG_DIR, im_name + "_redlight.jpg")
         cv2.imwrite(result_image_path, mask_lower)
     # Find suitable equipment labels
     labels = measure.label(mask_lower, connectivity=2)
     pro = measure.regionprops(labels)
     ok = True
+    lights = []
     if len(pro) > 0:
         ok = False
-        circle_color = (0, 255, 255)
         for p in pro:
             (x, y) = p.centroid
-            radius = x - p.bbox[0] + 7
-            #print(y,x, radius)
-            cv2.circle(im, (int(y), int(x)), int(radius), circle_color, 5)
-    return ok, len(pro), im
+            radius = x - p.bbox[0] + 10
+            lights.append((int(y), int(x), int(radius)))
+    return ok, lights
 
-def selectcont(cnts, blurred):
-    '''
-    im_copy = blurred.copy()
-    for (c, _) in cnts:
-        (x, y, w, h) = cv2.boundingRect(c)
-        print(x,y,w,h)
-        cv2.rectangle(im_copy, (x, y), (x + w, y + h), (0, 0, 255), 1)
-        cv2.imshow('im_copy', im_copy)
-        cv2.waitKey(0)
-     '''
+def selectu(u_num, u_boxes):
+    unum = []
+    uboxes = []
+    for ind, u in enumerate(u_num):
+        if len(u) > 0:
+            if int(u) <= 42 and int(u) >= 5:
+                if len(u) > 2:
+                    unum.append(u[:2])
+                    uboxes.append(u_boxes[ind])
+                elif len(u) == 2:
+                    unum.append(u)
+                    uboxes.append(u_boxes[ind])
 
-    contours = []
-    i = 0
-    for (c, _) in cnts:
-        (x, y, w, h) = cv2.boundingRect(c)
-        if w >= 7 and w <= 45 and h >=50 and h <= 75 and x > 0 and h > 0:
-            if w*1.0/h < 0.5:
-                x = x -  int(ceil((h*0.5-w)/2))
-                w = int(ceil(h * 0.5))
-            if w*1.0/h > 0.6:
-                y = y -  int(ceil((w/0.6-h)/2))
-                h = int(ceil(w/0.6))
-            if x > 0 and y > 0:
-                if i == 0:
-                    prerect = (x, y, w, h)
-                    contours.append(prerect)
-                    i += 1
-                else:
-                    iou =  IOU(prerect, (x,y,w,h))
-                    if iou < 0.2:
-                        prerect = (x, y, w, h)
-                        contours.append(prerect)
-                        i += 1
-        elif h >=45 and h <= 65 and w > 45 and x >0 and y >0:
-            #print(w)
-            if i == 0:
-                subim = blurred[y:y+h,x:x+w]
-                #cv2.imshow('im',subim)
-                #cv2.waitKey(0)
-                splitimages = get_splitimages(subim)
-                for j, splitimg in enumerate(splitimages):
-                    h0, w0 = splitimg.shape
-                    if j == 0:
-                        contours.append((x, y , w0, h0))
-                        nextx = x + w0
-                    else:
-                        contours.append((nextx, y , w0, h0))
-                        nextx = nextx + w0
+    clusters = []
+    cluster = []
+    if len(uboxes) > 0:
+        cluster.append((unum[0], uboxes[0]))
+        for ind, box in enumerate(uboxes[1:]):
+            if abs(box[0] - uboxes[ind][0]) < 100:
+                cluster.append((unum[ind+1], box))
             else:
-                iou =  IOU(prerect, (x,y,w,h))
-                if iou < 0.2:
-                    subim = blurred[y:y+h,x:x+w]
-                    #cv2.imshow('im',subim)
-                    #cv2.waitKey(0)
-                    splitimages = get_splitimages(subim)
-                    for j, splitimg in enumerate(splitimages):
-                        h0, w0 = splitimg.shape
-                        if j == 0:
-                            contours.append((x, y , w0, h0))
-                            nextx = x + w0
-                        else:
-                            contours.append((nextx, y , w0, h0))
-                            nextx = nextx + w0
-                #print(len(splitimages))
-            prerect = (x, y, w, h)
-            i += len(splitimages)
+                clusters.append(cluster)
+                cluster = []
+                cluster.append((unum[ind+1], box))
+        clusters.append(cluster)
+        for ind, c in enumerate(clusters):
+            if len(c) == 2:
+                if c[0][0] == c[1][0]:
+                    del clusters[ind][1]
+                else:
+                    del clusters[ind]
+    if len(clusters) >= 2:
+        set_unum = [clusters[0][0][0], clusters[-1][0][0]]
+        boxes = [clusters[0][0][1], clusters[-1][0][1]]
+    else:
+        set_unum = boxes =  []
 
-    return  contours
+    return set_unum, boxes
 
-def unum(region, im_name, ind):
-    model_path = 'train_nummodel/models/newmysvm_716.cpickle'
-    model = open(model_path).read()
-    model = cPickle.loads(model)
+def findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, w_min, w_max, DEBUG):
 
-    # initialize the HOG descriptor
-    hog = HOG(orientations = 18, pixelsPerCell = (10, 10), cellsPerBlock = (1,1), transform_sqrt = True, block_norm="L2")
-
-    image = cv2.resize(region,(120, 100),interpolation=cv2.INTER_CUBIC)
-    image = Image.fromarray(image)
-    enh_con = ImageEnhance.Contrast(image)
-    contrast = 8
-    im_con = enh_con.enhance(contrast)
-    im_con = np.asarray(im_con)
-    im_con = adjustim('curve4.acv', im_con)
-    #cv2.imshow('edged:', im_con)
-    #cv2.waitKey(0)
-    gray = cv2.cvtColor(im_con, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (9, 9), 0)
-    edged = cv2.Canny(blurred, 10, 100)
-    #cv2.imshow('edged:', edged)
-    #cv2.waitKey(0)
-    _, cnts, hierarchy = cv2.findContours(edged.copy(), cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-    cnts = sorted([(c, cv2.boundingRect(c)[0]) for c in cnts], key = lambda x: x[1])
-    contours = selectcont(cnts, blurred)
-
-    u_num = ''
-    for i, c in enumerate(contours):
-        (x, y, w, h) = c
-        roi = blurred[y:y + h, x:x + w]
-        #print(x,y)
-        # HOG + SVM
-        roi = cv2.resize(roi,(60,80),interpolation=cv2.INTER_CUBIC)
-        cv2.imshow('roi', roi)
-        cv2.waitKey(0)
-	thresh = roi.copy()
-	T = mahotas.thresholding.otsu(roi)
-	thresh[thresh > T] = 255
-        thresh[thresh <= T] = 0
-	thresh = cv2.bitwise_not(thresh)
-        #cv2.imwrite('train_nummodel/number/'+im_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
-        hist = hog.describe(thresh)
-	digit = model.predict([hist])[0]
-        u_num += str(digit)
-
-    return u_num	
-    
-
-def findregion(im, im_name, debug_dir):
-
-    # Find jigui tags
-    lower_hue_low = [25, 127, 90]
-    lower_hue_high = [32, 255, 230]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
-    gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
-    kernel_size = (5, 5)
+    kernel_size = (10,10)
     mask_lower= create_hue_mask(hsv_image, lower_hue_low, lower_hue_high, kernel_size)
-    if debug_dir:
-        result_image_path = os.path.join(debug_dir, im_name + "_jigui.jpg")
+    if DEBUG:
+        result_image_path = os.path.join(DEBUG_DIR, im_name + "_equip.jpg")
+        cv2.imwrite(result_image_path, mask_lower)
+    labels = measure.label(mask_lower, connectivity=2)
+    pro = measure.regionprops(labels)
+    min_width = 1000
+    for p in pro:
+        (x1, y1, x2, y2) = p.bbox
+        width = y2 - y1
+        if w_max > width > w_min:
+            if min_width > width:
+                min_width = width
+    boxes = []
+    firstx = uboxes[0][2] - 10
+    for p in pro:
+        (x1, y1, x2, y2) = p.bbox
+        if min_width <= y2-y1 <= min_width+23 and x1 >= uboxes[0][0]+5 and x2 <= uboxes[1][2]+10:
+            boxes.append(p.bbox)
+    if len(boxes) == 0:
+        return firstx
+    else:
+        dist = abs(boxes[0][0] - uboxes[0][2])
+        if dist < 100:
+            firstx = boxes[0][0] - 5
+            for p in boxes[1:]:
+                (x1, y1, x2, y2) = p
+                if abs(x1 - uboxes[0][2]) < dist:
+                    dist = abs(x1 - uboxes[0][2])
+                    firstx = x1 - 5
+    return firstx
+
+def findUregion(im, lower_hue_low, lower_hue_high, im_name, DEBUG):
+    # find u region
+    hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
+    kernel_size = (10, 10)
+    mask_lower = create_hue_mask(hsv_image, lower_hue_low, lower_hue_high, kernel_size)
+    if DEBUG:
+        result_image_path = os.path.join(DEBUG_DIR, im_name + "_mask_jigui.jpg")
         cv2.imwrite(result_image_path, mask_lower)
     labels = measure.label(mask_lower, connectivity=2)
     pro = measure.regionprops(labels)
 
     # remain good regions and detect u num
     im_copy = im.copy()
-    boxes = []
-    u_num = []
-    for ind, p in enumerate(pro): 
+    uboxes = []
+    utags = []
+    umasks = []
+    im_height, im_width = im_copy.shape[0:2]
+    i = 0
+    for ind, p in enumerate(pro):
         (x1, y1, x2, y2) = p.bbox
-        if 10 < y2-y1 < 95 and 10 < x2-x1 < 70:
-            # detect u num
-            uregion = im[x1:x2, y1:y2, :]
-            #cv2.imwrite(im_name+'_'+str(ind)+'.jpg', uregion)
-            #cv2.imshow('u',uregion)
-            #cv2.waitKey(0)
-            num = unum(uregion, im_name, ind)
-            print('detect:', num)
-            u_num.append(int(num))
-            boxes.append(p.bbox)
-            cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)           
-            #print(y2-y1, x2-x1)
-    cv2.imwrite('im.jpg', im_copy)
+        if 40 <= y2 - y1 <= 100 and 40 <= x2 - x1 <= 75 and (y2-y1)*1.0/(x2-x1) > 1 and p.area*1.0/((x2-x1)*(y2-y1)) > 0.7:  # and y2<0.9*im_width and y1>0.1*im_width and x1>0.1*im_height:
+            i += 1
+            x = 0 if x1-5 <= 0 else x1-5
+            y = 0 if y1-5 <= 0 else y1-5
+            utags.append(im[x:x2 + 5, y:y2 + 5, :])
+            uboxes.append(p.bbox)
+            umasks.append(mask_lower[x:x2 + 5, y:y2 + 5])
+            cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
+            #cv2.imwrite(im_name+'_mask_'+str(ind)+'.jpg', mask_lower[x:x2 + 5, y:y2 + 5])
+            #cv2.imwrite(im_name+'_tags_'+str(ind)+'.jpg', im[x:x2 + 5, y:y2 + 5])
+            #print('u:', y2-y1, x2-x1, p.area*1.0/((x2-x1)*(y2-y1)))
+    if DEBUG:
+        result_image_path = os.path.join(DEBUG_DIR, im_name + ".jpg")
+        cv2.imwrite(result_image_path, im_copy)
+    # print('utags:',len(utags))
+
+    if utags == []:
+        return False, [], [], [], []
+    else:
+        detect = detect_tags(type_tag='u', ratio=0.6, thresh_w=[15, 52], thresh_h=[45, 80], count=2, DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+        u_num = detect.detect_num(utags, im_name, umasks)
+    print('u_num:', u_num)
+    if u_num == ['']:
+        return False, [], [], [], []
+    else:
+        set_unum, uboxes = selectu(u_num, uboxes)
+    print('set_unum:', set_unum)
+    # print('uboxes:',uboxes)
 
     ok = True
     up_u = 0
     low_u = 0
     region = im.copy()
-    print('jigui tags is: ', len(boxes))
+    # print('jigui tags is: ', len(uboxes))
     # adjust jigui redion
-    if len(boxes) == 4:
-        if u_num[0] == u_num[1] and u_num[2] == u_num[3]:
-            low_u = u_num[2]
-            up_u = u_num[0]
-         
-            boxes.sort(key=lambda x:x[0])
-            up_region = boxes[:2]
-            low_region = boxes[2:]    
-            up_region.sort(key=lambda x:x[1])    # up_region[0] is left_up,  up_region[1] is right_up
-            low_region.sort(key=lambda x:x[1])    # low_region[0] is left_low, low_region[1] is right_low
-            src_point=np.float32([[up_region[0][1],up_region[0][2]-15],[low_region[0][1],low_region[0][2]],
-                             [low_region[1][3],low_region[1][2]],[up_region[1][3],up_region[1][2]-15]])
-            #print(src_point)
-            dsize=(1000, 800)
-            dst_point = np.float32([[0,0],[0,dsize[1]-1],[dsize[0]-1,dsize[1]-1],[dsize[0]-1,0]])
-            h, s = cv2.findHomography(src_point, dst_point, cv2.RANSAC, 10)   # projection transformation
-            region = cv2.warpPerspective(im, h, dsize)
-            if debug_dir:
-                result_image_path = os.path.join(debug_dir, im_name + "_jigui.jpg")
-                cv2.imwrite(result_image_path, region)
-        else:
-            ok = False
-            print('detect u incorrectly')      
+
+    if len(set_unum) == 2 and len(uboxes) == 2:
+        up_u = int(set_unum[0])
+        low_u = int(set_unum[1])
+
+        firstx = findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, 190, 270, DEBUG)
+
+        #print('uboxes:', uboxes[0][2], 'first:', firstx)
+        region = im[firstx:uboxes[1][2], :, :]
+        #width = int(region.shape[1] * 800 / region.shape[0])
+        #region = cv2.resize(region, (width, 800), interpolation=cv2.INTER_CUBIC)
+        u_point = firstx
+        if DEBUG:
+            result_image_path = os.path.join(DEBUG_DIR, im_name + "_jigui.jpg")
+            cv2.imwrite(result_image_path, region)
     else:
         ok = False
-        print('count of jigui tags is not four')
+        u_point = 0
+        # print('detect u incorrectly')
 
-    return ok, region, up_u, low_u, up_region[0][2]
+    return ok, region, up_u, low_u, u_point
 
-def isswitch(im, im_name, debug_dir):
-    lower_hue_low = [100, 76, 50]
-    lower_hue_high = [112, 204, 130]
+def isswitch(im, im_name, DEBUG):
+    lower_hue_low = [23, 127, 70]
+    lower_hue_high = [29, 255, 230]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
-    kernel_size = None
+    kernel_size = (10, 10)
     mask_lower= create_hue_mask(hsv_image, lower_hue_low, lower_hue_high, kernel_size)
-    if debug_dir:
-        result_image_path = os.path.join(debug_dir, im_name + "_switch.jpg")
+    if DEBUG:
+        result_image_path = os.path.join(DEBUG_DIR, im_name + "_switch.jpg")
         cv2.imwrite(result_image_path, mask_lower)
     labels = measure.label(mask_lower, connectivity=2)
     pro = measure.regionprops(labels)
+    switchboxes = []
     switchtags = []
+    switchmasks = []
+    i = 0
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if (x2-x1) > 15 and (y2-y1) > 90:
-            print(p.bbox)
-            switchtags.append(im[x1+2:x2-2,y1+2:y2-2,:])
+        if 380 > (y2-y1) > 330 and 55 > (x2-x1) > 30:
+            #print('switch:',(y2-y1), (x2-x1))
+            switchboxes.append(p.bbox)
+            switchtags.append(im[x1-5:x2+5,y1-5:y2+5,:])
+            switchmasks.append(mask_lower[x1-5:x2+5,y1-5:y2+5])
+            #cv2.imshow('switch', im[x1-5:x2+5,y1-5:y2+5,:])
+            #cv2.waitKey(0)
+        if 40 <= y2 - y1 <= 100 and 40 <= x2 - x1 <= 75 and (y2-y1)*1.0/(x2-x1) > 1 and p.area*1.0/((x2-x1)*(y2-y1)) > 0.7:
+            i += 1
     switch = False
-    if len(switchtags) > 0:
-        #print('box:', len(switchbox))
+    if len(switchboxes) > 0 and i < 4:
+        #print('switchboxes:', switchboxes)
         switch = True
-        
-    return switch, switchtags
+
+    return switch, switchboxes, switchtags, switchmasks
 
 
-def gettag(im, debug_dir, im_name):
+def findIPregion(img, im, up_u, low_u, u_point, lower_hue_low, lower_hue_high, im_name, DEBUG):
+    final_result = []
+    sum_u = up_u - low_u
+    height_u = img.shape[0]*1.0/sum_u
+
+    hsv_image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    kernel_size = (5, 5)
+    mask_lower= create_hue_mask(hsv_image, lower_hue_low, lower_hue_high, kernel_size)
+    if DEBUG:
+        result_image_path = os.path.join(DEBUG_DIR, im_name + "_equipment.jpg")
+        cv2.imwrite(result_image_path, mask_lower)
+
+    labels = measure.label(mask_lower, connectivity=2)
+    pro = measure.regionprops(labels)
+
+    # remain good IP regions
+    min_width = 1000
+    for p in pro:
+        (x1, y1, x2, y2) = p.bbox
+        width = y2 - y1
+        if 300 > width > 150 and 70 > x2-x1 > 30:
+            if min_width > width:
+                min_width = width
+    print('min_width:', min_width)
+
+    box = []
+    im_copy = img.copy()
+    for p in pro:
+        (x1, y1, x2, y2) = p.bbox
+        if min_width <= y2-y1 <= min_width + 30 and x2-x1 >= 30:
+            box.append(p.bbox)
+            #print('x2x1', y2-y1, x2-x1)
+            #cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
+            #print(p.bbox)
+            #subim = img[x1:x2, y1:y2, :]
+            #cv2.imshow('tags', subim)
+            #cv2.waitKey(0)
+    #cv2.imwrite(im_name+'.jpg', im_copy)
+
+    if len(box) > 0 and len(box)%2 == 0:
+        iptags = []
+        ipboxes = []
+        ipmasks = []
+        u = []
+        for i, b in enumerate(box):
+            if i%2 == 0:
+                y1 = 0 if b[0]-5 <0 else b[0]-5
+                y2 = img.shape[0] if b[2]+5 >img.shape[0] else b[2] + 5
+                subim = img[y1:y2, b[1]-5:b[3]+5, :]
+                submask = mask_lower[y1:y2, b[1]-5:b[3]+5]
+                if DEBUG:
+                    result_image_path = os.path.join(DEBUG_DIR, im_name+'_'+str(i)+'_'+'tag.jpg')
+                    cv2.imwrite(result_image_path, subim)
+                iptags.append(subim)
+                ipmasks.append(submask)
+                ipboxes.append(b)
+
+                # computer u
+                end_u = int(round(up_u - b[0]/height_u) -1)
+                start_u = int(round(up_u - box[i+1][2]/height_u))
+                u.append((start_u, end_u))
+                #print(end_u, start_u)
+
+        detect = detect_tags(type_tag='ip', ratio=0.6, thresh_w=[14, 44], thresh_h=[40, 62], count=[], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+        result = detect.detect_num(iptags, im_name, ipmasks)
+
+        if result:
+            for ind, res in enumerate(result):
+                u_list = np.arange(u[ind][0], u[ind][1]+1)
+                cv2.putText(im, 'IP: {}, U: {}'.format(res, u_list), (ipboxes[ind][1], u_point+ipboxes[ind][0]+80),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                final_result.append({'IP':res, 'U':u[ind]})
+
+    return final_result, im
+
+
+def detecting(im_url, image_type, debug=None):
+    im_name = im_url.split('/')[-1].split('.')[0]
+    im = cv2.imread(im_url)
+    if image_type == '0':
+        im = cv2.resize(im, (2400, 1350), interpolation=cv2.INTER_CUBIC)
+    image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
+    #image_file = os.path.join('code/result', im_name + '.jpg')
+
+    DEBUG = debug
+    final_result = []
+
     # judge if it is switch
-    
-    switch, switchtags = isswitch(im, im_name, debug_dir)
+    switch, switchboxes, switchtags, switchmasks = isswitch(im, im_name, DEBUG)
+
     print('switch: ', switch)
+
     if switch:
-        ok = False
-        tag = switchtags
-        points = []
-        u = []
-        u_point = 0
-        for ind, tag in enumerate(switchtags):
-            cv2.imwrite(im_name + '_' +str(ind) +'.jpg', tag)
+        print('switch.....................................')
+        ok = True
+        detect = detect_tags(type_tag='switch', ratio=0.6, thresh_w=[25, 60], thresh_h=[41, 65], count=[], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+        result = detect.detect_num(switchtags, im_name, switchmasks)
+        # visulize
+        if result:
+            for ind, res in enumerate(result):
+                if len(res) >= 2:
+                    cv2.putText(im, 'IP: '+res[0]+' U: '+res[1], (switchboxes[ind][1], switchboxes[ind][0]),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    final_result.append({'IP':res[0], 'U':[res[1]]})
     else:
-        # get jigui region and max u and min u
-        ok, im, up_u, low_u, u_point = findregion(im, im_name, debug_dir)
-        tag = []
-        points = []
-        u = []
-        if ok == True:
-            sum_u = up_u - low_u
-            height_u = im.shape[0]*1.0/sum_u
-            #print('sum_u:', sum_u, 'height_u: ',height_u)
-            
-            # Find yellow regions
-            #lower_hue_low = [25, 153, 153]
-            #lower_hue_high = [29, 255, 230]
-            lower_hue_low = [25, 127, 80]
-            lower_hue_high = [31, 255, 230]
-            hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
+        print('start detect up image IP..................')
+        # detect U tangs in the image
+        lower_hue_low = [20, 80, 70]
+        lower_hue_high = [31, 255, 230]
+        ok, region, up_u, low_u, u_point = findUregion(im, lower_hue_low, lower_hue_high, im_name,
+                                                     DEBUG)
+        if ok:
+            lower_hue_low = [23, 127, 65]
+            lower_hue_high = [31, 255, 255]
+            final_result, im = findIPregion(region, im, up_u, low_u, u_point, lower_hue_low, lower_hue_high, im_name, DEBUG)
 
-            kernel_size = (10,10)
-            mask_lower= create_hue_mask(hsv_image, lower_hue_low, lower_hue_high, kernel_size)
-            if debug_dir:
-                result_image_path = os.path.join(debug_dir, im_name + "_equipment.jpg")
-                cv2.imwrite(result_image_path, mask_lower)
 
-            labels = measure.label(mask_lower, connectivity=2)
-            pro = measure.regionprops(labels)
-            # remain good yellow regions
-            boxes = []
-            imm = im.copy()
-            min_width = 1000
-            for p in pro:
-                (x1, y1, x2, y2) = p.bbox
-                width = y2 - y1
-                if width > 100:
-                    if min_width > width:
-                        min_width = width
-            #print('min_width:', min_width)
-            box = []
-            for p in pro:
-                (x1, y1, x2, y2) = p.bbox
-                if min_width-5 < y2-y1 < min_width + 15:
-                    box.append(p.bbox)
-            for i, b in enumerate(box):
-                if i%2 == 0:
-                    #(x1,y1,x2,y2) = pro[i].bbox   
-                    #cv2.rectangle(imm, (y1, x1), (y2, x2), (0, 0, 255), 3)
-                    subim = im[b[0]+2:b[2]-2,b[1]+2:b[3]-2,:]
-                    cv2.imwrite(im_name+'_'+str(i)+'_'+'tag.jpg', subim)
-                    tag.append(subim)
-                    points.append((b[0], b[1]))
-                
-                    # compute u
-                    end_u = int(round(up_u - b[0]/height_u) -1)
-                    start_u = int(round(up_u - box[i+1][2]/height_u))
-                    u.append((start_u, end_u))
-                    #print(end_u, start_u)
-                    print('equipment '+str(i/2)+': ', np.arange(start_u, end_u+1))      
-                
-    return ok, tag, points, u, u_point
+    cv2.imwrite(image_file, im)
 
-def detecting(im, debug_dir, im_name):
-    '''
-    # detect red light
-    light, count, img = detect_redlight(im, 'debug/', im_name)
-    if not light:
-        print('image has {} red lights'.format(count))
-    '''
-    ok, tags, points, u, u_point = gettag(im, debug_dir, im_name)
-    #print(ok, len(tags), len(points), len(u))
-    if not ok:
-        return False
-
-    IP = detect_num(im, tags, im_name, debug_dir)
-    for ind, ip in enumerate(IP):
-        u_list = np.arange(u[ind][0], u[ind][1]+1)
-        cv2.putText(im, "ip: {}, u: {}".format(ip, u_list), (points[ind][1]+400,points[ind][0]+u_point+100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-    savepath = 'result/'+im_name+'.jpg'
-    cv2.imwrite(savepath, im)
-    return ok
+    return ok, final_result, image_file
