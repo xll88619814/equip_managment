@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from skimage import measure
 from detectnum import detect_tags
-from config import config
+#from config import config
 
 DEBUG_DIR = os.path.join(os.path.dirname(__file__), 'debug')
 DEBUG = False
@@ -198,7 +198,7 @@ def findUregion(im, lower_hue_low, lower_hue_high, u_y, u_x, im_name, DEBUG):
     return ok, region, up_u, low_u, u_point
 
 def isswitch(im, im_name, DEBUG):
-    lower_hue_low = [23, 127, 70]
+    lower_hue_low = [23, 127, 60]
     lower_hue_high = [31, 255, 230]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     kernel_size = (10, 10)
@@ -308,8 +308,8 @@ def findIPregion(img, im, up_u, low_u, u_point, lower_hue_low, lower_hue_high, i
 def detecting(im_url, image_type, debug=None):
     im = cv2.imread(im_url)
     im_name = im_url.split('/')[-1].split('.')[0]
-    image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
-    #image_file = os.path.join('code/result', im_name + '.jpg')
+    #image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
+    image_file = os.path.join('code/result', im_name + '.jpg')
 
     DEBUG = debug
     final_result = []
@@ -346,7 +346,7 @@ def detecting(im_url, image_type, debug=None):
         print('start detect low image IP..................')
         lower_hue_low = [20, 102, 70]
         lower_hue_high = [31, 255, 230]
-        ok, region, up_u, low_u, u_point = findUregion(im, lower_hue_low, lower_hue_high, [40, 100], [40, 75], im_name,
+        ok, region, up_u, low_u, u_point = findUregion(im, lower_hue_low, lower_hue_high, [40, 100], [50, 75], im_name,
                                                        DEBUG)
         #ok, img, up_u, low_u, u_point = findregion_below(im, im_name, DEBUG)
         if ok:

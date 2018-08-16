@@ -65,7 +65,7 @@ class detect_tags:
             maxx = 0.95 * width
         else:
             minx = 0.15 * width
-            maxx = 0.9 * width
+            maxx = 0.95 * width
 
         for (c, _) in cnts:
             (x, y, w, h) = cv2.boundingRect(c)
@@ -269,7 +269,7 @@ class detect_tags:
                     thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
                     thresh = cv2.bitwise_not(thresh)
-                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
                     digit = self.model.predict([hist])[0]
                     #print('digit',digit)

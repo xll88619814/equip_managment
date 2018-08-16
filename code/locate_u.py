@@ -228,7 +228,7 @@ def isswitch(im, im_name, DEBUG):
         if 40 <= y2 - y1 <= 100 and 40 <= x2 - x1 <= 75 and (y2-y1)*1.0/(x2-x1) > 1 and p.area*1.0/((x2-x1)*(y2-y1)) > 0.7:
             i += 1
     switch = False
-    if len(switchboxes) > 0 and i < 4:
+    if len(switchboxes) > 0 and i < 3:
         #print('switchboxes:', switchboxes)
         switch = True
 
@@ -347,8 +347,8 @@ def detecting(im_url, image_type, debug=None):
         ok, region, up_u, low_u, u_point = findUregion(im, lower_hue_low, lower_hue_high, im_name,
                                                      DEBUG)
         if ok:
-            lower_hue_low = [23, 127, 65]
-            lower_hue_high = [31, 255, 255]
+            lower_hue_low = [23, 150, 65]
+            lower_hue_high = [30, 255, 255]
             final_result, im = findIPregion(region, im, up_u, low_u, u_point, lower_hue_low, lower_hue_high, im_name, DEBUG)
 
 
