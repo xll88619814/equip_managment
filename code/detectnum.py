@@ -60,44 +60,44 @@ class detect_tags:
         contours = []
         i = 0
         height, width = blurred.shape[0:2]
-        if self.type == 'ip':
-            minx = 0.05 * width
-            maxx = 0.95 * width
-        else:
-            minx = 0.15 * width
-            maxx = 0.95 * width
+        # if self.type == 'ip':
+        #     minx = 0.05 * width
+        #     maxx = 0.95 * width
+        # else:
+        #     minx = 0.15 * width
+        #     maxx = 0.95 * width
 
         for (c, _) in cnts:
             (x, y, w, h) = cv2.boundingRect(c)
-            if x >= minx and y >= 0 and x+w < maxx and y+h < height-5:
+            if x >= 0 and y >= 0 and x+w <= width and y+h <= height:
                 if self.thresh_w[0] <= w <= self.thresh_w[1] and self.thresh_h[0] <= h <= self.thresh_h[1]:
                     if w*1.0/h < self.ratio:
-                        x = x -  int(ceil((h*self.ratio-w)/2))
-                        w = int(ceil(h * self.ratio))
+                        if x - int(ceil((h*self.ratio-w)/2)) >= 0:
+                            x = x - int(ceil((h*self.ratio-w)/2))
+                            w = int(ceil(h * self.ratio))
                         #print(x,w)
-                    if x > 0 and y >= 0:
-                        if i == 0:
+                    if i == 0:
+                        contours.append((x, y, w, h))
+                        prerect = (x, y, w, h)
+                        i += 1
+                    else:
+                        iou =  self.IOU(prerect, (x,y,w,h))
+                        if iou < 0.2:
                             contours.append((x, y, w, h))
                             prerect = (x, y, w, h)
                             i += 1
                         else:
-                            iou =  self.IOU(prerect, (x,y,w,h))
-                            if iou < 0.2:
+                            if prerect[2]*prerect[3] < w*h:
+                                if prerect in contours:
+                                    contours.remove(prerect)
+                                    i = i - 1
+                                else:
+                                    for k in range(count):
+                                        del contours[i-1-k]
+                                    i = i - count
                                 contours.append((x, y, w, h))
                                 prerect = (x, y, w, h)
-                                i += 1
-                            else:
-                                if prerect[2]*prerect[3] < w*h:
-                                    if prerect in contours:
-                                        contours.remove(prerect)
-                                        i = i - 1
-                                    else:
-                                        for k in range(count):
-                                            del contours[i-1-k]
-                                        i = i - count
-                                    contours.append((x, y, w, h))
-                                    prerect = (x, y, w, h)
-                                    i = i + 1
+                                i = i + 1
                 elif self.thresh_h[0] <= h <= self.thresh_h[1] and self.thresh_w[1] <= w <= 2*self.thresh_w[1]:
                     #print(w, h)
                     if i == 0:
@@ -222,7 +222,7 @@ class detect_tags:
                     thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
                     thresh = cv2.bitwise_not(thresh)
-                    #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
                     digit = self.model.predict([hist])[0]
 
@@ -243,8 +243,6 @@ class detect_tags:
                             cluster += digit
                 clusters.append(cluster)
                 del clusters[1:len(clusters)-1]
-                #print('clusters:',clusters)
-
             else:
                 sum_gap = 0
                 for i, c in enumerate(contours[1:]):
@@ -269,7 +267,7 @@ class detect_tags:
                     thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
                     thresh = cv2.bitwise_not(thresh)
-                    #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
                     digit = self.model.predict([hist])[0]
                     #print('digit',digit)
@@ -287,6 +285,5 @@ class detect_tags:
                 clusters += cluster
                 #print(clusters)
             result.append(clusters)
-
         return result
 
