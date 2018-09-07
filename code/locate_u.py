@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from skimage import measure
 from detectnum import detect_tags
-#from config import config
+from config import config
 
 DEBUG_DIR = os.path.join(os.path.dirname(__file__), 'debug')
 DEBUG = False
@@ -202,6 +202,7 @@ def findUregion(im, lower_hue_low, lower_hue_high, im_name, DEBUG):
     return ok, region, up_u, low_u, u_point
 
 def isswitch(im, im_name, DEBUG):
+    print('start detect switch tags..........................')
     lower_hue_low = [23, 100, 60]
     lower_hue_high = [29, 255, 230]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
@@ -216,9 +217,10 @@ def isswitch(im, im_name, DEBUG):
     switchtags = []
     switchmasks = []
     i = 0
+    count_u = 0
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if 380 >= (y2-y1) >= 230 and 55 >= (x2-x1) >= 25:
+        if 380 >= (y2-y1) >= 150 and 55 >= (x2-x1) >= 25:
             print('switch:', (y2-y1), (x2-x1))
             switchboxes.append(p.bbox)
             switchtags.append(im[x1-5:x2+5,y1-5:y2+5,:])
@@ -228,14 +230,27 @@ def isswitch(im, im_name, DEBUG):
                 cv2.imwrite(result_image_path, im[x1-5:x2+5,y1-5:y2+5,:])
             #cv2.imshow('switch', im[x1-5:x2+5,y1-5:y2+5,:])
             #cv2.waitKey(0)
-        #if 40 <= y2 - y1 <= 100 and 40 <= x2 - x1 <= 75 and (y2-y1)*1.0/(x2-x1) > 1 and p.area*1.0/((x2-x1)*(y2-y1)) > 0.7:
             i += 1
+        if 30 <= y2 - y1 <= 70 and 30 <= x2 - x1 <= 55 and 2 >= (y2-y1)*1.0/(x2-x1) >= 1 and p.area*1.0/((x2-x1)*(y2-y1)) > 0.7:
+            count_u += 1
     switch = False
-    if len(switchboxes) > 0 and i < 3:
-        #print('switchboxes:', switchboxes)
-        switch = True
-
-    return switch, switchboxes, switchtags, switchmasks
+    final_result = []
+    if len(switchboxes) > 0:
+        detect = detect_tags(type_tag='switch', ratio=0.7, thresh_w=[25, 60], thresh_h=[40, 74], count=[], DEBUG=DEBUG,
+                             DEBUG_DIR=DEBUG_DIR)
+        result = detect.detect_num(switchtags, im_name, switchmasks)
+        # visulize
+        if result and count_u < 3:
+            switch = True
+            for res in result:
+                print(res[0])
+                if len(res) >= 3:
+                    cv2.putText(im, 'IP: ' + res[1] + ' U: ' + res[2], (switchboxes[res[0]][1], switchboxes[res[0]][0]),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    final_result.append({'IP': res[1], 'U': [res[2]]})
+        else:
+            switch = False
+    return switch, final_result, im
 
 
 def findIPregion(img, im, up_u, low_u, u_point, lower_hue_low, lower_hue_high, im_name, DEBUG):
@@ -285,19 +300,19 @@ def findIPregion(img, im, up_u, low_u, u_point, lower_hue_low, lower_hue_high, i
         ipmasks = []
         u = []
         for i, b in enumerate(box):
-            if i%2 == 0:
-                y1 = 0 if b[0]-5 <0 else b[0]-5
-                y2 = img.shape[0] if b[2]+5 >img.shape[0] else b[2] + 5
-                subim = img[y1:y2, b[1]-5:b[3]+5, :]
-                submask = mask_lower[y1:y2, b[1]-5:b[3]+5]
-                if DEBUG:
-                    result_image_path = os.path.join(DEBUG_DIR, im_name+'_'+str(i)+'_'+'tag.jpg')
-                    cv2.imwrite(result_image_path, submask)
-                iptags.append(subim)
-                ipmasks.append(submask)
-                ipboxes.append(b)
+            y1 = 0 if b[0]-5 <0 else b[0]-5
+            y2 = img.shape[0] if b[2]+5 >img.shape[0] else b[2] + 5
+            subim = img[y1:y2, b[1]-5:b[3]+5, :]
+            submask = mask_lower[y1:y2, b[1]-5:b[3]+5]
+            if DEBUG:
+                result_image_path = os.path.join(DEBUG_DIR, im_name+'_'+str(i)+'_'+'tag.jpg')
+                cv2.imwrite(result_image_path, submask)
+            iptags.append(subim)
+            ipmasks.append(submask)
+            ipboxes.append(b)
 
-                # computer u
+            # computer u
+            if i % 2 == 0:
                 end_u = int(round(up_u - b[0]/height_u) -1)
                 start_u = int(round(up_u - box[i+1][2]/height_u))
                 u.append((start_u, end_u))
@@ -307,11 +322,15 @@ def findIPregion(img, im, up_u, low_u, u_point, lower_hue_low, lower_hue_high, i
         result = detect.detect_num(iptags, im_name, ipmasks)
 
         if result:
-            for ind, res in enumerate(result):
-                u_list = np.arange(u[ind][0], u[ind][1]+1)
+            count = len(result)
+            for ind in range(0, count, 2):
+                res1 = result[ind]
+                res2 = result[ind+1]
+                res = res1 if len(res1) > len(res2) else res2
+                u_list = np.arange(u[ind/2][0], u[ind/2][1]+1)
                 cv2.putText(im, 'IP: {}, U: {}'.format(res, u_list), (ipboxes[ind][1], u_point+ipboxes[ind][0]+80),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                final_result.append({'IP':res, 'U':u[ind]})
+                final_result.append({'IP': res, 'U': u[ind/2]})
 
     return final_result, im
 
@@ -355,8 +374,8 @@ def detecting(im_url, image_type, debug=None):
     # if image_type == '1':
     #     #im = cv2.resize(im, (2400, 1350), interpolation=cv2.INTER_CUBIC)
     #     im = cv2.resize(im, (2740, 1540), interpolation=cv2.INTER_CUBIC)
-    # #image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
-    image_file = os.path.join('code/result', im_name + '.jpg')
+    image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
+    #image_file = os.path.join('code/result', im_name + '.jpg')
 
     DEBUG = debug
     final_result = []
@@ -364,22 +383,11 @@ def detecting(im_url, image_type, debug=None):
     #jigui = findjigui(im, image_file, DEBUG)
 
     # judge if it is switch
-    switch, switchboxes, switchtags, switchmasks = isswitch(im, im_name, DEBUG)
-
+    switch, final_result, im = isswitch(im, im_name, DEBUG)
     print('switch: ', switch)
 
     if switch:
-        print('switch.....................................')
         ok = True
-        detect = detect_tags(type_tag='switch', ratio=0.7, thresh_w=[30, 70], thresh_h=[50, 84], count=[], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
-        result = detect.detect_num(switchtags, im_name, switchmasks)
-        # visulize
-        if result:
-            for ind, res in enumerate(result):
-                if len(res) >= 2:
-                    cv2.putText(im, 'IP: '+res[0]+' U: '+res[1], (switchboxes[ind][1], switchboxes[ind][0]),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                    final_result.append({'IP':res[0], 'U':[res[1]]})
     else:
         print('start detect up image IP..................')
         # detect U tangs in the image

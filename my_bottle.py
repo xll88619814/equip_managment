@@ -59,7 +59,7 @@ def index(args):
     im_file = get_bean(file_id)
     print("image file: {}".format(im_file))
 
-    ok, details,result_file  = detecting(im_file,im_type)
+    ok, details,result_file = detecting(im_file, im_type)
     final_result = {}
     final_details =[]
     for d in details:

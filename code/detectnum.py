@@ -187,10 +187,10 @@ class detect_tags:
             im_copy = blurred.copy()
             for (c, _) in cnts:
                 (x, y, w, h) = cv2.boundingRect(c)
-                #print(x,y,w,h)
+                # print(x,y,w,h)
                 cv2.rectangle(im_copy, (x, y), (x + w, y + h), (0, 0, 255), 1)
-                #cv2.imshow('im_copy', im_copy)
-                #cv2.waitKey(0)
+                # cv2.imshow('im_copy', im_copy)
+                # cv2.waitKey(0)
 
             if self.DEBUG:
                 savepath = os.path.join(self.DEBUG_DIR, image_name+'_'+self.type+'_'+str(ind)+'.jpg')
@@ -202,7 +202,7 @@ class detect_tags:
             if self.type == 'switch':
                 cluster = ''
                 clusters = []
-                clusters.append('SWITCH')
+                clusters.append(ind)
 
                 max_w = 0
                 for i, c in enumerate(contours[1:]):
@@ -235,14 +235,18 @@ class detect_tags:
                     if i == 0:
                         cluster += digit
                     else:
-                        if x - contours[i-1][0] < 70:
+                        if x - contours[i-1][0] < max_w:
                             cluster += digit
                         else:
+                            if cluster == 'SWTCH':
+                                cluster = 'SWITCH'
                             clusters.append(cluster)
                             cluster = ''
                             cluster += digit
                 clusters.append(cluster)
-                del clusters[1:len(clusters)-1]
+                print('clusters', clusters)
+                if clusters[1] != 'SWITCH':
+                    continue
             else:
                 sum_gap = 0
                 for i, c in enumerate(contours[1:]):
