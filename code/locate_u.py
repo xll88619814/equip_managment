@@ -282,15 +282,11 @@ def findIPregion(img, im, up_u, low_u, u_point, lower_hue_low, lower_hue_high, i
     im_copy = img.copy()
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if min_width <= y2-y1 <= min_width + 25 and x2-x1 >= 25:
+        if min_width <= y2-y1 <= min_width + 30 and x2-x1 >= 25:
             box.append(p.bbox)
             print('x2x1', y2-y1, x2-x1)
-            cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
-            #print(p.bbox)
-            #subim = img[x1:x2, y1:y2, :]
-            #cv2.imshow('tags', subim)
-            #cv2.waitKey(0)
-    cv2.imwrite(im_name+'.jpg', im_copy)
+            #cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
+    #cv2.imwrite(im_name+'.jpg', im_copy)
     print('len(box)', len(box))
     if len(box) % 2 != 0:
         box = box[:-1]

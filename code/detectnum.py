@@ -222,7 +222,7 @@ class detect_tags:
                     thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
                     thresh = cv2.bitwise_not(thresh)
-                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
                     digit = self.model.predict([hist])[0]
 
@@ -238,7 +238,7 @@ class detect_tags:
                         if x - contours[i-1][0] < max_w:
                             cluster += digit
                         else:
-                            if cluster == 'SWTCH':
+                            if 'S' in cluster and 'CH' in cluster:
                                 cluster = 'SWITCH'
                             clusters.append(cluster)
                             cluster = ''
@@ -271,7 +271,7 @@ class detect_tags:
                     thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
                     thresh = cv2.bitwise_not(thresh)
-                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
                     digit = self.model.predict([hist])[0]
                     #print('digit',digit)
