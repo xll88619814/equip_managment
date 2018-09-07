@@ -163,7 +163,7 @@ def findUregion(im, lower_hue_low, lower_hue_high, im_name, DEBUG):
     if utags == []:
         return False, [], [], [], []
     else:
-        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[17, 46], thresh_h=[48, 80], count=2, DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[16, 46], thresh_h=[48, 80], count=2, DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
         u_num = detect.detect_num(utags, im_name, umasks)
     print('u_num:', u_num)
     if u_num == ['']:
@@ -221,13 +221,15 @@ def isswitch(im, im_name, DEBUG):
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
         if 380 >= (y2-y1) >= 150 and 55 >= (x2-x1) >= 25:
-            print('switch:', (y2-y1), (x2-x1))
+            x1 = 0 if x1 - 5 < 0 else x1 - 5
+            x2 = im.shape[0] if x2 + 5 > im.shape[0] else x2 + 5
+            print('switch:', (x1, y1, x2, y2), (y2-y1), (x2-x1))
             switchboxes.append(p.bbox)
-            switchtags.append(im[x1-5:x2+5,y1-5:y2+5,:])
-            switchmasks.append(mask_lower[x1-5:x2+5,y1-5:y2+5])
+            switchtags.append(im[x1:x2, y1-5:y2+5, :])
+            switchmasks.append(mask_lower[x1:x2, y1-5:y2+5])
             if DEBUG:
                 result_image_path = os.path.join(DEBUG_DIR, im_name+'_'+str(i)+'_'+'switch.jpg')
-                cv2.imwrite(result_image_path, im[x1-5:x2+5,y1-5:y2+5,:])
+                cv2.imwrite(result_image_path, im[x1:x2, y1-5:y2+5, :])
             #cv2.imshow('switch', im[x1-5:x2+5,y1-5:y2+5,:])
             #cv2.waitKey(0)
             i += 1

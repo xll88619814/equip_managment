@@ -235,7 +235,7 @@ class detect_tags:
                     if i == 0:
                         cluster += digit
                     else:
-                        if x - contours[i-1][0] < max_w:
+                        if x - contours[i-1][0] <= max_w - 5:
                             cluster += digit
                         else:
                             if 'S' in cluster and 'CH' in cluster:
@@ -246,7 +246,7 @@ class detect_tags:
                 clusters.append(cluster)
                 print('clusters', clusters)
                 if clusters[1] != 'SWITCH':
-                    continue
+                   continue
             else:
                 sum_gap = 0
                 for i, c in enumerate(contours[1:]):
