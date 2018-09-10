@@ -4,7 +4,7 @@ import time
 import numpy as np
 from skimage import measure
 from detectnum import detect_tags
-from config import config
+#from config import config
 
 DEBUG_DIR = os.path.join(os.path.dirname(__file__), 'debug')
 DEBUG = False
@@ -102,14 +102,14 @@ def findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, w_min, w_
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
         width = y2 - y1
-        if w_max > width > w_min:
+        if w_max > width > w_min and x2 - x1 >= 25:
             if min_width > width:
                 min_width = width
     boxes = []
     firstx = uboxes[0][2] - 10
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if min_width <= y2-y1 <= min_width+23 and x1 >= uboxes[0][0]+5 and x2 <= uboxes[1][2]+10:
+        if min_width <= y2-y1 <= min_width+30 and x1 >= uboxes[0][0] and x2 <= uboxes[1][2]+10:
             boxes.append(p.bbox)
     if len(boxes) == 0:
         return firstx
@@ -373,8 +373,8 @@ def detecting(im_url, image_type, debug=None):
     # if image_type == '1':
     #     #im = cv2.resize(im, (2400, 1350), interpolation=cv2.INTER_CUBIC)
     #     im = cv2.resize(im, (2740, 1540), interpolation=cv2.INTER_CUBIC)
-    image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
-    #image_file = os.path.join('code/result', im_name + '.jpg')
+    #image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
+    image_file = os.path.join('code/result', im_name + '.jpg')
 
     DEBUG = debug
     final_result = []
