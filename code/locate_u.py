@@ -1,6 +1,6 @@
-
 import os
 import cv2
+import time
 import numpy as np
 from skimage import measure
 from detectnum import detect_tags
@@ -367,6 +367,7 @@ import matplotlib.pyplot as plt
 #     return jigui
 
 def detecting(im_url, image_type, debug=None):
+    start = time.time()
     im_name = im_url.split('/')[-1].split('.')[0]
     im = cv2.imread(im_url)
     # if image_type == '1':
@@ -400,5 +401,6 @@ def detecting(im_url, image_type, debug=None):
 
 
     cv2.imwrite(image_file, im)
-
+    end = time.time()
+    print('spend time is: ', end-start)
     return ok, final_result, image_file
