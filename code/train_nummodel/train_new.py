@@ -41,6 +41,6 @@ model = LinearSVC(random_state = 42)
 model.fit(train_data, train_labels)
 
 # dump the model to file
-f = open('models/num_char.cpickle', "w")
+f = open('models/num_char_new.cpickle', "w")
 f.write(cPickle.dumps(model))
 f.close()

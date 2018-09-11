@@ -53,13 +53,13 @@ def upload_file(file_address):
 
 @route("/equip/:args")
 def index(args):
-    file_id, im_type= args.split(',')
+    file_id = args
     print("input args: file_id={}".format(file_id))
 
     im_file = get_bean(file_id)
     print("image file: {}".format(im_file))
 
-    ok, details,result_file = detecting(im_file, im_type)
+    ok, details,result_file = detecting(im_file)
     final_result = {}
     final_details =[]
     for d in details:

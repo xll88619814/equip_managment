@@ -11,10 +11,10 @@ if __name__ =='__main__':
     for imagename in os.listdir(test_dir):
         print('image name is : ', imagename)
         image = test_dir + imagename   
-        image_type = image.split('/')[-1].split('_')[1].split('.')[0]
-        ok, result, result_file = detecting(image, image_type, True)
+        #image_type = image.split('/')[-1].split('_')[1].split('.')[0]
+        ok, result, result_file = detecting(image, True)
         final_result = json.dumps(result)
-        print('final result: ', final_result)
+        print('final result: ', final_result, ok)
 
 
 '''

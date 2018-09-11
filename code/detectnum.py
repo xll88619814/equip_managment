@@ -17,7 +17,7 @@ class detect_tags:
         self.model = cPickle.loads(model)
 
         self.hog = HOG(orientations = 18, pixelsPerCell = (10, 10), cellsPerBlock = (1,1), transform_sqrt = True, block_norm="L2")
-        self.dict = {10:'C',11:'H',12:'S',13:'T',14:'W'}
+        self.dict = {10:'C',11:'H',12:'S',13:'T',14:'W',15:'E',16:'R',17:'V'}
         self.type = type_tag
         self.ratio = ratio 
         self.thresh_w = thresh_w
@@ -222,7 +222,7 @@ class detect_tags:
                     thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
                     thresh = cv2.bitwise_not(thresh)
-                    #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
                     digit = self.model.predict([hist])[0]
 
@@ -271,7 +271,7 @@ class detect_tags:
                     thresh[thresh > T] = 255
                     thresh[thresh <= T] = 0
                     thresh = cv2.bitwise_not(thresh)
-                    #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                     hist = self.hog.describe(thresh)
                     digit = self.model.predict([hist])[0]
                     #print('digit',digit)
