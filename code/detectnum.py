@@ -12,20 +12,20 @@ from ImagePreprocessing import pre_proc
 
 class detect_tags:
     def __init__(self, type_tag, ratio, thresh_w, thresh_h, count, DEBUG, DEBUG_DIR):
-        modelpath = 'code/train_nummodel/models/num_char.cpickle'
+        modelpath = 'code/train_nummodel/models/num_char_new.cpickle'
         model = open(modelpath).read()
         self.model = cPickle.loads(model)
 
         self.hog = HOG(orientations = 18, pixelsPerCell = (10, 10), cellsPerBlock = (1,1), transform_sqrt = True, block_norm="L2")
         self.dict = {10:'C',11:'H',12:'S',13:'T',14:'W',15:'E',16:'R',17:'V'}
         self.type = type_tag
-        self.ratio = ratio 
+        self.ratio = ratio
         self.thresh_w = thresh_w
         self.thresh_h = thresh_h
         self.count = count
         self.DEBUG = DEBUG
         self.DEBUG_DIR = DEBUG_DIR
-        
+
     def IOU(self, Reframe, GTframe):
         x1 = Reframe[0]
         y1 = Reframe[1]
@@ -40,7 +40,7 @@ class detect_tags:
         endx = max(x1+width1,x2+width2)
         startx = min(x1,x2)
         width = width1+width2-(endx-startx)
- 
+
         endy = max(y1+height1,y2+height2)
         starty = min(y1,y2)
         height = height1+height2-(endy-starty)
@@ -104,8 +104,8 @@ class detect_tags:
                         #print('subim:', x, y, w, h)
                         blurr = blurred.copy()
                         subim = blurr[y:y+h,x:x+w]
-                        #cv2.imshow('im',subim)
-                        #cv2.waitKey(0)
+                        cv2.imshow('im',subim)
+                        cv2.waitKey(0)
                         splitimages = get_splitimages(subim)
                         for j, splitimg in enumerate(splitimages):
                             h0, w0 = splitimg.shape
@@ -119,11 +119,11 @@ class detect_tags:
                         i += len(splitimages)
                         count = len(splitimages)
                     else:
-                        iou =  self.IOU(prerect, (x,y,w,h))
+                        iou = self.IOU(prerect, (x,y,w,h))
                         if iou < 0.2:
                             blurr = blurred.copy()
-                            subim = blurr[y:y+h,x:x+w]
-                            #cv2.imshow('subim',subim)
+                            subim = blurr[y:y+h, x:x+w]
+                            #cv2.imshow('subim', subim)
                             #cv2.waitKey(0)
                             splitimages = get_splitimages(subim)
                             for j, splitimg in enumerate(splitimages):
@@ -161,7 +161,10 @@ class detect_tags:
 
     def detect_num(self, tags, image_name, masks):
         result = []
+        SWITCH = False
         for ind, image in enumerate(tags):
+            switch = False
+            server = False
             # load the image
             #print(image.shape)
             width = image.shape[1] * 100 / image.shape[0]
@@ -176,7 +179,6 @@ class detect_tags:
             edged = cv2.Canny(blurred, 50, 200)
             #cv2.imshow('edged', edged)
             #cv2.waitKey(0)
-        
 
             _, cnts, hierarchy = cv2.findContours(edged.copy(), cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
             cnts = sorted([(c, cv2.boundingRect(c)[0]) for c in cnts], key = lambda x: x[1])
@@ -199,39 +201,39 @@ class detect_tags:
             # remain good contours
             contours = self.selectcont(cnts, blurred)
 
-            if self.type == 'switch':
-                cluster = ''
-                clusters = []
-                clusters.append(ind)
+            cluster = ''
+            clusters = []
+            max_w = 0
+            for i, c in enumerate(contours[1:]):
+                if max_w < (c[0] - contours[i][0]):
+                    max_w = c[0] - contours[i][0]
 
-                max_w = 0
-                for i, c in enumerate(contours[1:]):
-                    if max_w < (c[0] - contours[i][0]):
-                        max_w = c[0] - contours[i][0]
-                for i, c in enumerate(contours):
-                    (x, y, w, h) = c
-                    #print('digit:',(x, y, w, h))
-                    roi = blurred[y:y + h, x:x + w]
-                    #cv2.imshow('roi', roi)
-                    #cv2.waitKey(0)
+            for i, c in enumerate(contours):
+                (x, y, w, h) = c
+                # print('digit:',(x, y, w, h))
+                roi = blurred[y:y + h, x:x + w]
+                # cv2.imshow('roi', roi)
+                # cv2.waitKey(0)
 
-                    # HOG + SVM
-                    roi = cv2.resize(roi, (60,80), interpolation=cv2.INTER_CUBIC)
-                    thresh = roi.copy()
-                    T = mahotas.thresholding.otsu(roi)
-                    thresh[thresh > T] = 255
-                    thresh[thresh <= T] = 0
-                    thresh = cv2.bitwise_not(thresh)
-                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
-                    hist = self.hog.describe(thresh)
-                    digit = self.model.predict([hist])[0]
+                # HOG + SVM
+                roi = cv2.resize(roi, (60, 80), interpolation=cv2.INTER_CUBIC)
+                thresh = roi.copy()
+                T = mahotas.thresholding.otsu(roi)
+                thresh[thresh > T] = 255
+                thresh[thresh <= T] = 0
+                thresh = cv2.bitwise_not(thresh)
+                #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                hist = self.hog.describe(thresh)
+                digit = self.model.predict([hist])[0]
 
-                    if digit >= 10:
-                        digit = self.dict[digit]
-                    else:
-                        digit = str(digit)
-                    #print('digit:',digit)
+                if digit >= 10:
+                    digit = self.dict[digit]
+                else:
+                    digit = str(digit)
 
+                if self.type == 'u':
+                    cluster += digit
+                else:
                     if i == 0:
                         cluster += digit
                     else:
@@ -240,54 +242,123 @@ class detect_tags:
                         else:
                             if 'S' in cluster and 'CH' in cluster:
                                 cluster = 'SWITCH'
+                                switch = True
+                                SWITCH = True
+                            elif 'S' in cluster and 'E' in cluster and 'R' in cluster:
+                                cluster = 'SERVER'
+                                server = True
+
                             clusters.append(cluster)
                             cluster = ''
                             cluster += digit
-                clusters.append(cluster)
-                print('clusters', clusters)
-                if clusters[1] != 'SWITCH':
-                   continue
-            else:
-                sum_gap = 0
-                for i, c in enumerate(contours[1:]):
-                    sum_gap += abs(c[0] - contours[i][0] - contours[i][2])
-                if len(contours) > 1:
-                    thresh_gap = sum_gap/(len(contours)-1) + 5
-                else:
-                    thresh_gap = 0
-                cluster = ''
-                clusters = ''
-                for i, c in enumerate(contours):
-                    (x, y, w, h) = c
-                    #print((x, y, w, h))
-                    roi = blurred[y:y + h, x:x + w]
-                    #cv2.imshow('roi', roi)
-                    #cv2.waitKey(0)
-
-                    # HOG + SVM
-                    roi = cv2.resize(roi, (60,80), interpolation=cv2.INTER_CUBIC)
-                    thresh = roi.copy()
-                    T = mahotas.thresholding.otsu(roi)
-                    thresh[thresh > T] = 255
-                    thresh[thresh <= T] = 0
-                    thresh = cv2.bitwise_not(thresh)
-                    cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
-                    hist = self.hog.describe(thresh)
-                    digit = self.model.predict([hist])[0]
-                    #print('digit',digit)
-                    
-                    if i == 0:
-                        cluster += str(digit)
-                    else:
-                        if x - contours[i-1][0] - contours[i-1][2] < thresh_gap:
-                            cluster += str(digit)
-                        else:
-                            clusters += cluster
-                            clusters += '.'
-                            cluster = ''
-                            cluster += str(digit)
-                clusters += cluster
-                #print(clusters)
+            clusters.append(cluster)
+            if not switch and not server:
+                clu = clusters[0]
+                for cl in clusters[1:]:
+                    clu += '.'
+                    clu += cl
+                clusters = clu
+            if server and not switch:
+                clu = ''
+                for cl in clusters:
+                    clu += cl
+                clusters = clu
+            print('clusters', clusters)
             result.append(clusters)
-        return result
+        return result, SWITCH
+
+
+
+        #
+        #     if self.type == 'switch':
+        #         cluster = ''
+        #         clusters = []
+        #         clusters.append(ind)
+        #
+        #         max_w = 0
+        #         for i, c in enumerate(contours[1:]):
+        #             if max_w < (c[0] - contours[i][0]):
+        #                 max_w = c[0] - contours[i][0]
+        #         for i, c in enumerate(contours):
+        #             (x, y, w, h) = c
+        #             #print('digit:',(x, y, w, h))
+        #             roi = blurred[y:y + h, x:x + w]
+        #             #cv2.imshow('roi', roi)
+        #             #cv2.waitKey(0)
+        #
+        #             # HOG + SVM
+        #             roi = cv2.resize(roi, (60,80), interpolation=cv2.INTER_CUBIC)
+        #             thresh = roi.copy()
+        #             T = mahotas.thresholding.otsu(roi)
+        #             thresh[thresh > T] = 255
+        #             thresh[thresh <= T] = 0
+        #             thresh = cv2.bitwise_not(thresh)
+        #             #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+        #             hist = self.hog.describe(thresh)
+        #             digit = self.model.predict([hist])[0]
+        #
+        #             if digit >= 10:
+        #                 digit = self.dict[digit]
+        #             else:
+        #                 digit = str(digit)
+        #             #print('digit:',digit)
+        #
+        #             if i == 0:
+        #                 cluster += digit
+        #             else:
+        #                 if x - contours[i-1][0] <= max_w - 5:
+        #                     cluster += digit
+        #                 else:
+        #                     if 'S' in cluster and 'CH' in cluster:
+        #                         cluster = 'SWITCH'
+        #                     clusters.append(cluster)
+        #                     cluster = ''
+        #                     cluster += digit
+        #         clusters.append(cluster)
+        #         print('clusters', clusters)
+        #         if clusters[1] != 'SWITCH':
+        #            continue
+        #     else:
+        #         sum_gap = 0
+        #         for i, c in enumerate(contours[1:]):
+        #             sum_gap += abs(c[0] - contours[i][0] - contours[i][2])
+        #         if len(contours) > 1:
+        #             thresh_gap = sum_gap/(len(contours)-1) + 5
+        #         else:
+        #             thresh_gap = 0
+        #         cluster = ''
+        #         clusters = ''
+        #         for i, c in enumerate(contours):
+        #             (x, y, w, h) = c
+        #             #print((x, y, w, h))
+        #             roi = blurred[y:y + h, x:x + w]
+        #             #cv2.imshow('roi', roi)
+        #             #cv2.waitKey(0)
+        #
+        #             # HOG + SVM
+        #             roi = cv2.resize(roi, (60,80), interpolation=cv2.INTER_CUBIC)
+        #             thresh = roi.copy()
+        #             T = mahotas.thresholding.otsu(roi)
+        #             thresh[thresh > T] = 255
+        #             thresh[thresh <= T] = 0
+        #             thresh = cv2.bitwise_not(thresh)
+        #             #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+        #             hist = self.hog.describe(thresh)
+        #             digit = self.model.predict([hist])[0]
+        #             #print('digit',digit)
+        #
+        #             if i == 0:
+        #                 cluster += str(digit)
+        #             else:
+        #                 if x - contours[i-1][0] - contours[i-1][2] < thresh_gap:
+        #                     cluster += str(digit)
+        #                 else:
+        #                     clusters += cluster
+        #                     clusters += '.'
+        #                     cluster = ''
+        #                     cluster += str(digit)
+        #         clusters += cluster
+        #         #print(clusters)
+        #     result.append(clusters)
+        # return result
 
