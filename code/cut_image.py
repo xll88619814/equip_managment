@@ -95,13 +95,14 @@ def _get_end_route(image, start_x, height, width):
 	last_p = cur_p
 	end_route.append(cur_p)
 
-	while cur_p[1] < (height - 1): #and cur_p[0] < (width - 1):
+	while cur_p[1] < (height - 1):# and cur_p[0] < (width - 1):
                 #print('width:', width, cur_p[0])
 		sum_n = 0
 		maxW = 0 # max Z_j*W_j
 		nextX = cur_p[0]
 		nextY = cur_p[1]
 		for i in range(1, 6):
+                        #print(cur_p[0], cur_p[1], image.size)
 			curW = _get_nearby_pixel_val(image, cur_p[0], cur_p[1], i) * (6 - i)
 			sum_n += curW
 			if maxW < curW:
@@ -181,10 +182,15 @@ def _get_nearby_pixel_val(image, cx, cy, j):
 	elif j == 2:
 		return 1 if _is_black(image.getpixel((cx, cy + 1))) else 0
 	elif j == 3:
-                #print(cx+1, cy+1, image.size)
-		return 1 if _is_black(image.getpixel((cx + 1 , cy + 1))) else 0
+                if cx+1 >= image.size[0]:
+                    return 0
+                else:
+		    return 1 if _is_black(image.getpixel((cx + 1 , cy + 1))) else 0
 	elif j == 4:
-		return 1 if _is_black(image.getpixel((cx + 1, cy))) else 0
+                if cx+1 >= image.size[0]:
+                    return 0
+                else:
+		    return 1 if _is_black(image.getpixel((cx + 1, cy))) else 0
 	elif j == 5:
 		return 1 if _is_black(image.getpixel((cx - 1, cy))) else 0
 	else:
@@ -312,7 +318,7 @@ def recu(cutim, cutim_list):
 		split_images = _drop_fall(cutim)
 		recu(split_images[0], cutim_list)
 		recu(split_images[1], cutim_list)
-	elif cutim.size[0] > 30: 
+	elif cutim.size[0] > 25: 
 		img = np.asarray(cutim)
 		gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 cutim_list.append(gray)

@@ -18,15 +18,17 @@ def create_hue_mask(image, lower_color, upper_color, kernel_size):
         return mask
 
 
-img = cv2.imread(image_path)
+img = cv2.imread('5.jpg')
 
-lower_hue_low = [25, 127, 80]
+#lower_hue_low = [23, 100, 65]
+#lower_hue_high = [31, 255, 255]
+lower_hue_low = [20, 102, 70]
 lower_hue_high = [31, 255, 230]
 hsv_image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
 kernel_size = (10,10)
 mask_lower= create_hue_mask(hsv_image, lower_hue_low, lower_hue_high, kernel_size)
-
+cv2.imwrite('mask.jpg', mask_lower)
 labels = measure.label(mask_lower, connectivity=2)
 pro = measure.regionprops(labels)
             

@@ -1,5 +1,6 @@
 import os
 import cv2
+import sys
 import time
 import numpy as np
 from skimage import measure
@@ -98,25 +99,33 @@ def findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, w_min, w_
         cv2.imwrite(result_image_path, mask_lower)
     labels = measure.label(mask_lower, connectivity=2)
     pro = measure.regionprops(labels)
-    min_width = 1000
-    for p in pro:
-        (x1, y1, x2, y2) = p.bbox
-        width = y2 - y1
-        if w_max > width > w_min and x2 - x1 >= 25:
-            if min_width > width:
-                min_width = width
+
     boxes = []
-    firstx = uboxes[0][2] - 10
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if min_width <= y2-y1 <= min_width+30 and x1 >= uboxes[0][0] and x2 <= uboxes[1][2]+10:
+        if 380 >= (y2-y1) >= 150 and 55 >= (x2-x1) >= 25 and p.area*1.0/((x2-x1)*(y2-y1)) > 0.7:
             boxes.append(p.bbox)
+    print('len(bbox)',len(boxes))
+    #min_width = 1000
+    #for p in pro:
+    #    (x1, y1, x2, y2) = p.bbox
+    #    width = y2 - y1
+    #    if w_max > width > w_min and x2 - x1 >= 25:
+    #        if min_width > width:
+    #            min_width = width
+    #
+    #for p in pro:
+    #    (x1, y1, x2, y2) = p.bbox
+    #    if min_width <= y2-y1 <= min_width+30 and x1 >= uboxes[0][0] and x2 <= uboxes[1][2]+10:
+    #        boxes.append(p.bbox)
+
+    firstx = uboxes[0][2] - 10
     if len(boxes) == 0:
         return firstx
     else:
         dist = abs(boxes[0][0] - uboxes[0][2])
         if dist < 100:
-            firstx = boxes[0][0] - 5
+            firstx = 0 if (boxes[0][0] - 5) <= 0 else (boxes[0][0] - 5)
             for p in boxes[1:]:
                 (x1, y1, x2, y2) = p
                 if abs(x1 - uboxes[0][2]) < dist:
@@ -185,8 +194,7 @@ def findUregion(im, lower_hue_low, lower_hue_high, im_name, DEBUG):
         low_u = int(set_unum[1])
 
         firstx = findfirstpoint(im, uboxes, im_name, lower_hue_low, lower_hue_high, 150, 250, DEBUG)
-
-        #print('uboxes:', uboxes[0][2], 'first:', firstx)
+        print('uboxes:', uboxes[0][2], 'first:', firstx)
         region = im[firstx:uboxes[1][2]-5, :, :]
 
         up_point = firstx
@@ -207,7 +215,7 @@ def isswitch(im, im_name, DEBUG):
     switch = False
     server = False
     final_result = []
-    lower_hue_low = [23, 100, 65]
+    lower_hue_low = [20, 90, 65]
     lower_hue_high = [31, 255, 255]
 
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
@@ -227,7 +235,7 @@ def isswitch(im, im_name, DEBUG):
     u_box = []
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if 380 >= (y2-y1) >= 150 and 55 >= (x2-x1) >= 25:
+        if 380 >= (y2-y1) >= 150 and 55 >= (x2-x1) >= 25 and p.area*1.0/((x2-x1)*(y2-y1)) > 0.7:
             x1 = 0 if x1 - 5 < 0 else x1 - 5
             x2 = im.shape[0] if x2 + 5 > im.shape[0] else x2 + 5
             print('switch:', (x1, y1, x2, y2), (y2-y1), (x2-x1))
@@ -420,12 +428,13 @@ def detecting(im_url, debug=None):
     else:
         print('start detect up image IP..................')
         # detect U tangs in the image
-        lower_hue_low = [20, 90, 70]
-        lower_hue_high = [31, 255, 230]
+        lower_hue_low = [20, 90, 65]
+        lower_hue_high = [31, 255, 255]
         ok, up_u, low_u, up_point, low_point = findUregion(im, lower_hue_low, lower_hue_high, im_name, DEBUG)
+        print(up_point, low_point)
         if ok:
             for b, res in zip(boxes, result):
-                if up_point <= b[0] <= low_point:
+                if up_point <= b[0] and b[2] <= low_point:
                     continue
                 else:
                     boxes.remove(b)
@@ -434,8 +443,8 @@ def detecting(im_url, debug=None):
             sum_u = up_u - low_u
             height_u = (low_point - up_point) * 1.0 / sum_u
             print(boxes)
-            if result:
-                count = len(result)
+            if result and boxes:
+                count =len(result)-1 if len(result)%2 != 0 else len(result)
                 for ind in range(0, count, 2):
                     res1 = result[ind + 1]
                     res2 = result[ind]

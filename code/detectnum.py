@@ -16,8 +16,8 @@ class detect_tags:
         model = open(modelpath).read()
         self.model = cPickle.loads(model)
 
-        self.hog = HOG(orientations = 18, pixelsPerCell = (10, 10), cellsPerBlock = (1,1), transform_sqrt = True, block_norm="L2")
-        self.dict = {10:'C',11:'H',12:'S',13:'T',14:'W',15:'E',16:'R',17:'V'}
+        self.hog = HOG(orientations = 18, pixelsPerCell = (10, 10), cellsPerBlock = (1, 1), transform_sqrt = True, block_norm = "L2")
+        self.dict = {10:'C', 11:'H', 12:'S', 13:'T', 14:'W', 15:'E', 16:'R', 17:'V'}
         self.type = type_tag
         self.ratio = ratio
         self.thresh_w = thresh_w
@@ -103,9 +103,9 @@ class detect_tags:
                     if i == 0:
                         #print('subim:', x, y, w, h)
                         blurr = blurred.copy()
-                        subim = blurr[y:y+h,x:x+w]
-                        cv2.imshow('im',subim)
-                        cv2.waitKey(0)
+                        subim = blurr[y:y+h, x:x+w]
+                        #cv2.imshow('im',subim)
+                        #cv2.waitKey(0)
                         splitimages = get_splitimages(subim)
                         for j, splitimg in enumerate(splitimages):
                             h0, w0 = splitimg.shape
@@ -115,14 +115,15 @@ class detect_tags:
                             else:
                                 contours.append((nextx, y , w0, h0))
                                 nextx = nextx + w0
-                        prerect = (x, y , w, h)
+                        prerect = (x, y, w, h)
                         i += len(splitimages)
                         count = len(splitimages)
                     else:
-                        iou = self.IOU(prerect, (x,y,w,h))
+                        iou = self.IOU(prerect, (x, y, w, h))
                         if iou < 0.2:
                             blurr = blurred.copy()
                             subim = blurr[y:y+h, x:x+w]
+                            #print('split', x,y,w,h)
                             #cv2.imshow('subim', subim)
                             #cv2.waitKey(0)
                             splitimages = get_splitimages(subim)
@@ -130,7 +131,7 @@ class detect_tags:
                                 h0, w0 = splitimg.shape
 
                                 if j == 0:
-                                    contours.append((x, y , w0, h0))
+                                    contours.append((x, y, w0, h0))
                                     nextx = x + w0
                                 else:
                                     contours.append((nextx, y , w0, h0))
@@ -167,21 +168,25 @@ class detect_tags:
             server = False
             # load the image
             #print(image.shape)
-            width = image.shape[1] * 100 / image.shape[0]
-            image = cv2.resize(image,(width, 100),interpolation=cv2.INTER_CUBIC)
-            mask = cv2.resize(masks[ind],(width, 100),interpolation=cv2.INTER_CUBIC)
+            width1 = image.shape[1] * 100 / image.shape[0]
+            image = cv2.resize(image, (width1, 100), interpolation=cv2.INTER_CUBIC)
+            mask = cv2.resize(masks[ind], (width1, 100), interpolation=cv2.INTER_CUBIC)
             #cv2.imwrite(image_name+'_'+self.type+'_'+str(ind)+'.jpg', image)
             blurred = pre_proc.proc(image, mask)
 
+            #print('width1',width1)
             width = blurred.shape[1] * 100 / blurred.shape[0]
-            blurred = cv2.resize(blurred,(width, 100),interpolation=cv2.INTER_CUBIC)
+            #if abs(width1 - width) > 300:
+            #    width = width1 + 100
+            #print('width2',width)
+            blurred = cv2.resize(blurred, (width, 100), interpolation=cv2.INTER_CUBIC)
             blurred = cv2.bitwise_not(blurred)
             edged = cv2.Canny(blurred, 50, 200)
             #cv2.imshow('edged', edged)
             #cv2.waitKey(0)
 
             _, cnts, hierarchy = cv2.findContours(edged.copy(), cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-            cnts = sorted([(c, cv2.boundingRect(c)[0]) for c in cnts], key = lambda x: x[1])
+            cnts = sorted([(c, cv2.boundingRect(c)[0]) for c in cnts], key=lambda x: x[1])
             #cv2.drawContours(image, cnts, -1, (255, 255, 255), thickness=-1)
             #cv2.imwrite('contour.jpg',image)
 

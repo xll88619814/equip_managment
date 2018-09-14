@@ -4,7 +4,6 @@ import sys
 import json
 sys.path.append('../')
 sys.path.append('code/train_nummodel')
-#from code.gettags import detecting
 from code.locate_u import detecting
 
 if __name__ =='__main__':
