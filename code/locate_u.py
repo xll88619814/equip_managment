@@ -393,6 +393,10 @@ import matplotlib.pyplot as plt
 #     return jigui
 
 def detecting(im_url, debug=None):
+    output = sys.stdout
+    outputfile = open('log.txt', 'w')
+    sys.stdout = outputfile
+
     start = time.time()
     im_name = im_url.split('/')[-1].split('.')[0]
     im = cv2.imread(im_url)
