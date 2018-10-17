@@ -60,12 +60,6 @@ class detect_tags:
         contours = []
         i = 0
         height, width = blurred.shape[0:2]
-        # if self.type == 'ip':
-        #     minx = 0.05 * width
-        #     maxx = 0.95 * width
-        # else:
-        #     minx = 0.15 * width
-        #     maxx = 0.95 * width
 
         for (c, _) in cnts:
             (x, y, w, h) = cv2.boundingRect(c)
@@ -162,7 +156,7 @@ class detect_tags:
 
     def detect_num(self, tags, image_name, masks):
         result = []
-        SWITCH = False
+        result_switch = []
         for ind, image in enumerate(tags):
             switch = False
             server = False
@@ -210,6 +204,7 @@ class detect_tags:
             clusters = []
             max_w = 0
             for i, c in enumerate(contours[1:]):
+                #print(c[0] - contours[i][0])
                 if max_w < (c[0] - contours[i][0]):
                     max_w = c[0] - contours[i][0]
 
@@ -227,36 +222,37 @@ class detect_tags:
                 thresh[thresh > T] = 255
                 thresh[thresh <= T] = 0
                 thresh = cv2.bitwise_not(thresh)
-                #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                 hist = self.hog.describe(thresh)
                 digit = self.model.predict([hist])[0]
 
-                if digit >= 10:
+                if digit >= 10 and self.type != 'u':
                     digit = self.dict[digit]
                 else:
                     digit = str(digit)
 
+                #print('digit', digit)
                 if self.type == 'u':
                     cluster += digit
                 else:
                     if i == 0:
                         cluster += digit
                     else:
-                        if x - contours[i-1][0] <= max_w - 5:
+                        if x - contours[i-1][0] <= max_w - 25:
                             cluster += digit
                         else:
-                            if 'S' in cluster and 'CH' in cluster:
+                            if 'S' in cluster and ('TC' in cluster or 'CH' in cluster or 'W' in cluster):
                                 cluster = 'SWITCH'
                                 switch = True
-                                SWITCH = True
                             elif 'S' in cluster and 'E' in cluster and 'R' in cluster:
-                                cluster = 'SERVER'
+                                cluster = 'SER'
                                 server = True
 
                             clusters.append(cluster)
                             cluster = ''
                             cluster += digit
             clusters.append(cluster)
+            #print(clusters)
             if not switch and not server:
                 clu = clusters[0]
                 for cl in clusters[1:]:
@@ -268,9 +264,13 @@ class detect_tags:
                 for cl in clusters:
                     clu += cl
                 clusters = clu
+
             print('clusters', clusters)
-            result.append(clusters)
-        return result, SWITCH
+            if switch:
+                result_switch.append((ind, clusters))
+            else:
+                result.append(clusters)
+        return result, result_switch
 
 
 
