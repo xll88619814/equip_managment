@@ -17,9 +17,9 @@ def create_hue_mask(image, lower_color, upper_color, kernel_size):
     mask = cv2.inRange(image, lower, upper)
     # open and close
     if kernel_size:
-        kernel=cv2.getStructuringElement(cv2.MORPH_RECT, (6, 6))
-        dilated = cv2.dilate(mask, kernel)
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+        dilated = cv2.dilate(mask, kernel)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
         eroded = cv2.erode(dilated, kernel)
         return eroded
     else:
@@ -53,6 +53,7 @@ def detect_redlight(im, im_name):
 def selectu(u_num, u_boxes):
     unum = []
     uboxes = []
+
     for ind, u in enumerate(u_num):
         if len(u) > 0:
             if int(u) <= 42 and int(u) >= 5:
@@ -85,7 +86,7 @@ def selectu(u_num, u_boxes):
         set_unum = [clusters[0][0][0], clusters[-1][0][0]]
         boxes = [clusters[0][0][1], clusters[-1][0][1]]
     else:
-        set_unum = boxes =  []
+        set_unum = boxes = []
 
     return set_unum, boxes
 
@@ -125,14 +126,18 @@ def findminbox(im, x1, x2):
 def findfirstpoint(uboxes, boxes):
     print('len(bbox)', len(boxes))
     firstx = uboxes[0][2] - 10
-    lastx = uboxes[1][2]
+    #lastx = uboxes[1][2]
     if len(boxes) == 0:
         return firstx
     else:
         #dist =[b[0]-uboxes[0][2] if b[0]-uboxes[0][2] >= 0 else 1000 for b in boxes]
         dist = [abs(b[0] - uboxes[0][2]) for b in boxes]
-        #print('ddddddd',dist)
-        index = dist.index(min(dist))
+        print('ddddddd',dist)
+        if dist.count(min(dist)) == 1:
+            index = dist.index(min(dist))
+        elif dist.count(min(dist)) == 2:
+            index = dist.index(min(dist)) +1
+        print('index', index)
         #print(index, boxes[index][0])
         if dist[index] < 50:
             firstx = boxes[index][0]
@@ -184,7 +189,7 @@ def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
 def findalltags(im, im_name, DEBUG):
     print('start detect switch tags..........................')
     lower_hue_low = [20, 90, 65]
-    lower_hue_high = [31, 255, 255]
+    lower_hue_high = [30, 255, 255]
 
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     kernel_size = (5, 5)
@@ -206,12 +211,13 @@ def findalltags(im, im_name, DEBUG):
     im_copy = im.copy()
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if 230 >= (y2-y1) >= 100 and 50 >= (x2-x1) >= 23 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
+        if 230 >= (y2-y1) >= 100 and 40 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.6:
             print(p.area*1.0/((x2-x1)*(y2-y1)))
             switchboxes.append(p.bbox)
-        if 230 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 50 and 0.3 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.65:
+        if 230 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 40 and 0.3 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.6:
+            print('tag width!!!!!!!!!!!!!!!!!!!!!!!')
             x1, x2 = findminbox(mask_lower[x1:x2, y1:y2], x1, x2)
-            if 50 >= (x2-x1) >= 23:
+            if 40 >= (x2-x1) >= 20:
                 switchboxes.append((x1, y1, x2, y2))
         if 30 <= y2-y1 <= 90 and 30 <= x2-x1 <= 65 and 2 > (y2-y1)*1.0/(x2-x1) > 1 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.7:
             i += 1
@@ -346,6 +352,7 @@ def detecting(im_url, debug=None):
 
         # visulize
         if result_switch:
+            switchboxes = []
             for ind, res in result_switch:
                 if (up_point <= boxes[ind][0] and boxes[ind][0] <= low_point and ok) or not ok:
                     if len(res) == 3:
@@ -355,7 +362,10 @@ def detecting(im_url, debug=None):
                     cv2.putText(im, 'IP: ' + res[0] + ' U: ' + u_index, (boxes[ind][1], boxes[ind][0]),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     final_result.append({'IP': res[0], 'U': [res[1:]]})
-                del boxes[ind]
+                    switchboxes.append(boxes[ind])
+            if switchboxes:
+                for box in switchboxes:
+                    boxes.remove(box)
 
         if ok and result:
             print(len(boxes), len(result))
