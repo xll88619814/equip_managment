@@ -357,11 +357,13 @@ def detecting(im_url, debug=None):
                 if (up_point <= boxes[ind][0] and boxes[ind][0] <= low_point and ok) or not ok:
                     if len(res) == 3:
                         u_index = res[1]+'~'+res[2]
+                        u = (int(res[1]), int(res[2]))
                     else:
                         u_index = res[1]
+                        u = (int(res[1]), int(res[1]))
                     cv2.putText(im, 'IP: ' + res[0] + ' U: ' + u_index, (boxes[ind][1], boxes[ind][0]),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                    final_result.append({'IP': res[0], 'U': [res[1:]]})
+                    final_result.append({'IP': res[0], 'U': u})
                     switchboxes.append(boxes[ind])
             if switchboxes:
                 for box in switchboxes:
