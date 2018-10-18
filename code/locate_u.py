@@ -344,6 +344,7 @@ def detecting(im_url, debug=None):
     if len(boxes) > 0:
         print('start detect U..................')
         ok, up_u, low_u, up_point, low_point = detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG)
+        u_range = [low_u, up_u]
         print(up_point, low_point)
 
         detect = detect_tags(type_tag='switch', ratio=0.65, thresh_w=[18, 65], thresh_h=[45, 85], count=[], DEBUG=DEBUG,
@@ -400,4 +401,4 @@ def detecting(im_url, debug=None):
     cv2.imwrite(image_file, im)
     end = time.time()
     print('spend time is: ', end-start)
-    return ok, final_result, image_file
+    return ok, final_result, image_file, u_range
