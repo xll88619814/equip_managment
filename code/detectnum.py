@@ -222,7 +222,7 @@ class detect_tags:
                 thresh[thresh > T] = 255
                 thresh[thresh <= T] = 0
                 thresh = cv2.bitwise_not(thresh)
-                cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                 hist = self.hog.describe(thresh)
                 digit = self.model.predict([hist])[0]
 
@@ -244,7 +244,7 @@ class detect_tags:
                             if 'S' in cluster and ('TC' in cluster or 'CH' in cluster or 'W' in cluster):
                                 cluster = 'SWITCH'
                                 switch = True
-                            elif 'S' in cluster and 'E' in cluster and 'R' in cluster:
+                            elif 'SE' in cluster or 'ER' in cluster or 'SR' in cluster:
                                 cluster = 'SER'
                                 server = True
 

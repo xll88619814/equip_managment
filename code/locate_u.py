@@ -346,7 +346,7 @@ def detecting(im_url, debug=None):
         ok, up_u, low_u, up_point, low_point = detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG)
         print(up_point, low_point)
 
-        detect = detect_tags(type_tag='switch', ratio=0.65, thresh_w=[18, 65], thresh_h=[45, 81], count=[], DEBUG=DEBUG,
+        detect = detect_tags(type_tag='switch', ratio=0.65, thresh_w=[18, 65], thresh_h=[45, 85], count=[], DEBUG=DEBUG,
                              DEBUG_DIR=DEBUG_DIR)
         result, result_switch = detect.detect_num(switchtags, im_name, switchmasks)
 
