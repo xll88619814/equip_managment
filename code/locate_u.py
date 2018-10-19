@@ -336,7 +336,7 @@ def detecting(im_url, debug=None):
 
     DEBUG = debug
     final_result = []
-
+    u_range = []
     # judge if it is switch
     switchtags, switchmasks, boxes, utags, umasks, uboxes = findalltags(im, im_name, DEBUG)
 
