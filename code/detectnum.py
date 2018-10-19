@@ -1,11 +1,9 @@
+import copy
 import cv2, os
 import cPickle
 import mahotas
-import numpy as np
 from math import *
-from filters import adjustim
 from imagesearch.hog import HOG
-from PIL import ImageEnhance, Image
 from cut_image import get_splitimages
 from ImagePreprocessing import pre_proc
 
@@ -63,7 +61,7 @@ class detect_tags:
 
         for (c, _) in cnts:
             (x, y, w, h) = cv2.boundingRect(c)
-            if x >= 0 and y >= 0 and x+w <= width and y+h <= height:
+            if x > 0 and y >= 0 and x+w < width and y+h <= height:
                 if self.thresh_w[0] <= w <= self.thresh_w[1] and self.thresh_h[0] <= h <= self.thresh_h[1]:
                     if w*1.0/h < self.ratio:
                         if x - int(ceil((h*self.ratio-w)/2)) >= 0:
@@ -168,11 +166,7 @@ class detect_tags:
             #cv2.imwrite(image_name+'_'+self.type+'_'+str(ind)+'.jpg', image)
             blurred = pre_proc.proc(image, mask)
 
-            #print('width1',width1)
             width = blurred.shape[1] * 100 / blurred.shape[0]
-            #if abs(width1 - width) > 300:
-            #    width = width1 + 100
-            #print('width2',width)
             blurred = cv2.resize(blurred, (width, 100), interpolation=cv2.INTER_CUBIC)
             blurred = cv2.bitwise_not(blurred)
             edged = cv2.Canny(blurred, 50, 200)
@@ -188,7 +182,7 @@ class detect_tags:
             im_copy = blurred.copy()
             for (c, _) in cnts:
                 (x, y, w, h) = cv2.boundingRect(c)
-                # print(x,y,w,h)
+                # print(x, y, w, h)
                 cv2.rectangle(im_copy, (x, y), (x + w, y + h), (0, 0, 255), 1)
                 # cv2.imshow('im_copy', im_copy)
                 # cv2.waitKey(0)
@@ -202,11 +196,16 @@ class detect_tags:
 
             cluster = ''
             clusters = []
-            max_w = 0
+            digits = []
+            dist = []
             for i, c in enumerate(contours[1:]):
                 #print(c[0] - contours[i][0])
-                if max_w < (c[0] - contours[i][0]):
-                    max_w = c[0] - contours[i][0]
+                dist.append(c[0] - contours[i][0])
+            if dist:
+                max_w = max(dist)
+            else:
+                max_w = 0
+            #print('dist..........................', dist)
 
             for i, c in enumerate(contours):
                 (x, y, w, h) = c
@@ -222,16 +221,17 @@ class detect_tags:
                 thresh[thresh > T] = 255
                 thresh[thresh <= T] = 0
                 thresh = cv2.bitwise_not(thresh)
-                #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                # cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                 hist = self.hog.describe(thresh)
                 digit = self.model.predict([hist])[0]
 
-                if digit >= 10 and self.type != 'u':
+                if digit >= 10 and self.type == 'ip':
                     digit = self.dict[digit]
                 else:
                     digit = str(digit)
-
+                digits.append(digit)
                 #print('digit', digit)
+
                 if self.type == 'u':
                     cluster += digit
                 else:
@@ -254,11 +254,21 @@ class detect_tags:
             clusters.append(cluster)
             #print(clusters)
             if not switch and not server:
-                clu = clusters[0]
-                for cl in clusters[1:]:
-                    clu += '.'
-                    clu += cl
-                clusters = clu
+                if self.type == 'ip':
+                    clusters = ''
+                    order = copy.deepcopy(dist)
+                    order.sort(reverse=True)
+                    #print('dist..........................', order,dist)
+                    for i, d in enumerate(digits[:-1]):
+                        if order.index(dist[i]) < 3:
+                            clusters = clusters + d + '.'
+                        else:
+                            clusters += d
+                    clusters += digits[-1]
+                    #print(clusters)
+                else:
+                    clu = clusters[0]
+                    clusters = clu
             if server and not switch:
                 clu = ''
                 for cl in clusters:
@@ -271,99 +281,4 @@ class detect_tags:
             else:
                 result.append(clusters)
         return result, result_switch
-
-
-
-        #
-        #     if self.type == 'switch':
-        #         cluster = ''
-        #         clusters = []
-        #         clusters.append(ind)
-        #
-        #         max_w = 0
-        #         for i, c in enumerate(contours[1:]):
-        #             if max_w < (c[0] - contours[i][0]):
-        #                 max_w = c[0] - contours[i][0]
-        #         for i, c in enumerate(contours):
-        #             (x, y, w, h) = c
-        #             #print('digit:',(x, y, w, h))
-        #             roi = blurred[y:y + h, x:x + w]
-        #             #cv2.imshow('roi', roi)
-        #             #cv2.waitKey(0)
-        #
-        #             # HOG + SVM
-        #             roi = cv2.resize(roi, (60,80), interpolation=cv2.INTER_CUBIC)
-        #             thresh = roi.copy()
-        #             T = mahotas.thresholding.otsu(roi)
-        #             thresh[thresh > T] = 255
-        #             thresh[thresh <= T] = 0
-        #             thresh = cv2.bitwise_not(thresh)
-        #             #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
-        #             hist = self.hog.describe(thresh)
-        #             digit = self.model.predict([hist])[0]
-        #
-        #             if digit >= 10:
-        #                 digit = self.dict[digit]
-        #             else:
-        #                 digit = str(digit)
-        #             #print('digit:',digit)
-        #
-        #             if i == 0:
-        #                 cluster += digit
-        #             else:
-        #                 if x - contours[i-1][0] <= max_w - 5:
-        #                     cluster += digit
-        #                 else:
-        #                     if 'S' in cluster and 'CH' in cluster:
-        #                         cluster = 'SWITCH'
-        #                     clusters.append(cluster)
-        #                     cluster = ''
-        #                     cluster += digit
-        #         clusters.append(cluster)
-        #         print('clusters', clusters)
-        #         if clusters[1] != 'SWITCH':
-        #            continue
-        #     else:
-        #         sum_gap = 0
-        #         for i, c in enumerate(contours[1:]):
-        #             sum_gap += abs(c[0] - contours[i][0] - contours[i][2])
-        #         if len(contours) > 1:
-        #             thresh_gap = sum_gap/(len(contours)-1) + 5
-        #         else:
-        #             thresh_gap = 0
-        #         cluster = ''
-        #         clusters = ''
-        #         for i, c in enumerate(contours):
-        #             (x, y, w, h) = c
-        #             #print((x, y, w, h))
-        #             roi = blurred[y:y + h, x:x + w]
-        #             #cv2.imshow('roi', roi)
-        #             #cv2.waitKey(0)
-        #
-        #             # HOG + SVM
-        #             roi = cv2.resize(roi, (60,80), interpolation=cv2.INTER_CUBIC)
-        #             thresh = roi.copy()
-        #             T = mahotas.thresholding.otsu(roi)
-        #             thresh[thresh > T] = 255
-        #             thresh[thresh <= T] = 0
-        #             thresh = cv2.bitwise_not(thresh)
-        #             #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
-        #             hist = self.hog.describe(thresh)
-        #             digit = self.model.predict([hist])[0]
-        #             #print('digit',digit)
-        #
-        #             if i == 0:
-        #                 cluster += str(digit)
-        #             else:
-        #                 if x - contours[i-1][0] - contours[i-1][2] < thresh_gap:
-        #                     cluster += str(digit)
-        #                 else:
-        #                     clusters += cluster
-        #                     clusters += '.'
-        #                     cluster = ''
-        #                     cluster += str(digit)
-        #         clusters += cluster
-        #         #print(clusters)
-        #     result.append(clusters)
-        # return result
 
