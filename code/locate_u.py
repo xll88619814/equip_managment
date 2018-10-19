@@ -337,16 +337,17 @@ def detecting(im_url, debug=None):
     DEBUG = debug
     final_result = []
     u_range = []
+    ok = True
     # judge if it is switch
     switchtags, switchmasks, boxes, utags, umasks, uboxes = findalltags(im, im_name, DEBUG)
 
-    ok = True
-    if len(boxes) > 0:
-        print('start detect U..................')
+    if len(uboxes) > 0:
         ok, up_u, low_u, up_point, low_point = detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG)
         u_range = [low_u, up_u]
         print(up_point, low_point)
 
+    if len(boxes) > 0 and ok:
+        print('start detect U..................')
         detect = detect_tags(type_tag='switch', ratio=0.65, thresh_w=[18, 65], thresh_h=[45, 85], count=[], DEBUG=DEBUG,
                              DEBUG_DIR=DEBUG_DIR)
         result, result_switch = detect.detect_num(switchtags, im_name, switchmasks)
