@@ -15,7 +15,7 @@ class detect_tags:
         self.model = cPickle.loads(model)
 
         self.hog = HOG(orientations = 18, pixelsPerCell = (10, 10), cellsPerBlock = (1, 1), transform_sqrt = True, block_norm = "L2")
-        self.dict = {10:'C', 11:'H', 12:'S', 13:'T', 14:'W', 15:'E', 16:'R', 17:'V'}
+        self.dict = {10:'C', 11:'E', 12:'H', 13:'R', 14:'S', 15:'T', 16:'W'}
         self.type = type_tag
         self.ratio = ratio
         self.thresh_w = thresh_w
@@ -230,7 +230,7 @@ class detect_tags:
                 else:
                     digit = str(digit)
                 digits.append(digit)
-                #print('digit', digit)
+                # print('digit', digit)
 
                 if self.type == 'u':
                     cluster += digit
@@ -264,6 +264,7 @@ class detect_tags:
                             clusters = clusters + d + '.'
                         else:
                             clusters += d
+                    print(digits)
                     clusters += digits[-1]
                     #print(clusters)
                 else:
