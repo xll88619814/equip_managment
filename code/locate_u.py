@@ -96,6 +96,8 @@ def findminbox(im, x1, x2):
     ratio = np.sum(im == 255)*1.0/((x2-x1)*w)
     # print(ratio)
     while ratio < 0.65:
+        if x2-x1 < 20:
+            return 0, 0
         ratio1 = np.sum(im[2:, :] == 255) * 1.0 / ((x2-x1-1) * w)
         ratio2 = np.sum(im[:-2, :] == 255) * 1.0 / ((x2-x1-1) * w)
         if ratio1 > ratio2:
