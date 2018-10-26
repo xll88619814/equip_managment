@@ -213,10 +213,10 @@ def findalltags(im, im_name, DEBUG):
     im_copy = im.copy()
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if 230 >= (y2-y1) >= 100 and 45 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.6:
-            # print(p.area*1.0/((x2-x1)*(y2-y1)))
+        if 230 >= (y2-y1) >= 100 and 40 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.6:
+            #print(p.area*1.0/((x2-x1)*(y2-y1)))
             tagboxes.append(p.bbox)
-        if 230 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 45 and 0.3 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.6:
+        if 230 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 40 and 0.3 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.7:
             print('tag width!!!!!!!!!!!!!!!!!!!!!!!')
             x1, x2 = findminbox(mask_lower[x1:x2, y1:y2], x1, x2)
             if 45 >= (x2-x1) >= 20:
@@ -287,7 +287,7 @@ def detecting(im_url, debug=None):
             tagboxes = []
             for ind, res in result_switch:
                 print(up_point, boxes[ind][0], boxes[ind][2], low_point+10, len(uboxes))
-                if (up_point <= boxes[ind][0] and boxes[ind][2] <= low_point+10) or len(uboxes) <= 2:
+                if (up_point <= boxes[ind][0] and boxes[ind][2] <= low_point+10) or (len(uboxes) <= 2 and low_u == up_u):
                     print('111111111111111111111')
                     if len(res) == 3:
                         u_index = res[1] + '~' + res[2]
