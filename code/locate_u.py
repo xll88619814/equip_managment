@@ -137,10 +137,10 @@ def findfirstpoint(uboxes, boxes):
         if dist.count(min(dist)) == 1:
             index = dist.index(min(dist))
         elif dist.count(min(dist)) == 2:
-            index = dist.index(min(dist)) +1
+            index = dist.index(min(dist)) + 1
         print('index', index)
         # print(index, boxes[index][0])
-        if dist[index] < 50:
+        if dist[index] < 30:
             firstx = boxes[index][0]
 
     return firstx
@@ -333,6 +333,24 @@ def detecting(im_url, debug=None):
                                 (boxes[ind][1], boxes[ind][0] + 50),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     final_result.append({'IP': res, 'U': (start_u, end_u)})
+
+            '''
+            if result and boxes:
+                for ind in range(len(boxes)):
+                    res = result[ind]
+                    curr_u = int(round(up_u - (boxes[ind][2] - up_point) / height_u))
+                    count_u =  (boxes[ind][2] - up_point) / height_u
+                    if count_u-np.floor(count_u) > 0.3:
+                        curr_u = int(up_u - np.ceil(count_u))
+                    else:
+                        curr_u = int(up_u - np.floor(count_u))
+                    print(count_u)
+                    # print(up_u - (boxes[ind][0] - up_point) / height_u - 1, up_u - (boxes[ind + 1][2] - up_point) / height_u)
+                    cv2.putText(im, 'IP: {}, U: {}'.format(res, curr_u),
+                                (boxes[ind][1], boxes[ind][0] + 50),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    final_result.append({'IP': res, 'U': curr_u})
+            '''
 
     cv2.imwrite(image_file, im)
     end = time.time()
