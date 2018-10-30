@@ -267,6 +267,7 @@ def detecting(im_url, debug=None):
     final_result = []
     u_range = []
     ok = True
+    empty = True
     tagimages, tagmasks, boxes, uimages, umasks, uboxes = findalltags(im, im_name, DEBUG)
 
     if len(uboxes) > 0:
@@ -299,6 +300,7 @@ def detecting(im_url, debug=None):
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     final_result.append({'IP': res[0], 'U': u})
                     tagboxes.append(boxes[ind])
+                    empty = False
 
             if tagboxes:
                 for box in tagboxes:
@@ -317,6 +319,7 @@ def detecting(im_url, debug=None):
 
             sum_u = up_u - low_u
             height_u = (low_point - up_point) * 1.0 / sum_u
+            '''
             # print(boxes)
             if result and boxes:
                 count =len(result)-1 if len(result)%2 != 0 else len(result)
@@ -350,7 +353,9 @@ def detecting(im_url, debug=None):
                                 (boxes[ind][1], boxes[ind][0] + 50),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     final_result.append({'IP': res, 'U': curr_u})
-            '''
+                    empty = False
+    if empty and ok:
+        cv2.putText(im, 'NULL', (500, 500), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 3)
 
     cv2.imwrite(image_file, im)
     end = time.time()
