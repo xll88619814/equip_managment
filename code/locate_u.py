@@ -275,6 +275,11 @@ def detecting(im_url, debug=None):
         ok, up_u, low_u, up_point, low_point = detectU(im, boxes, uimages, umasks, uboxes, im_name, DEBUG)
         u_range = [low_u, up_u]
         print('detect u result: ', ok, up_point, low_point)
+    else:
+        up_u = 0
+        low_u = 0 
+        up_point = 0
+        low_point = 0
 
     if len(boxes) > 0 and ok:
         print('start detect all tags..................')
