@@ -270,6 +270,10 @@ def detecting(im_url, debug=None):
     empty = True
     tagimages, tagmasks, boxes, uimages, umasks, uboxes = findalltags(im, im_name, DEBUG)
 
+    if len(uboxes) == 0 and len(boxes) == 0:
+        cv2.imwrite(image_file, im)
+        return False, [], image_file, []
+
     if len(uboxes) > 0:
         print('start detect U..................')
         ok, up_u, low_u, up_point, low_point = detectU(im, boxes, uimages, umasks, uboxes, im_name, DEBUG)
