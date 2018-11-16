@@ -25,13 +25,13 @@ def create_hue_mask(image, lower_color, upper_color, kernel_size):
         return mask
 
 
-def detect_redlight(im, im_name):
+def detect_redlight(im, im_name, debug=None):
     # Find red regions
-    red_hue_low = [150, 178, 100]
+    red_hue_low = [150, 100, 50]
     red_hue_high = [180, 255, 200]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     # Get lower hue
-    kernel_size = (5,5)
+    kernel_size = []
     mask_lower= create_hue_mask(hsv_image, red_hue_low, red_hue_high, kernel_size)
     if DEBUG:
         result_image_path = os.path.join(DEBUG_DIR, im_name + "_redlight.jpg")
@@ -44,9 +44,11 @@ def detect_redlight(im, im_name):
     if len(pro) > 0:
         ok = False
         for p in pro:
-            (x, y) = p.centroid
-            radius = x - p.bbox[0] + 10
-            lights.append((int(y), int(x), int(radius)))
+            if p.area > 10:
+                (x, y) = p.centroid
+                radius = x - p.bbox[0] + 10
+                lights.append((int(y), int(x), int(radius)))
+                
     return ok, lights
 
 def selectu(u_num, u_boxes):
@@ -257,23 +259,21 @@ def findalltags(im, im_name, DEBUG):
 
 def detecting(im_url, debug=None):
     start = time.time()
+    DEBUG = debug
     im_name = im_url.split('/')[-1].split('.')[0]
     im = cv2.imread(im_url)
+    im_copy = im.copy()
 
+    # save path of result image 
     image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
     #image_file = os.path.join('code/result', im_name + '.jpg')
 
-    DEBUG = debug
-    final_result = []
-    u_range = []
-    ok = True
-    empty = True
+    # find all tags
     tagimages, tagmasks, boxes, uimages, umasks, uboxes = findalltags(im, im_name, DEBUG)
 
-    if len(uboxes) == 0 and len(boxes) == 0:
-        cv2.imwrite(image_file, im)
-        return False, [], image_file, []
-
+    # detect u tags
+    u_range = []
+    ok = True
     if len(uboxes) > 0:
         print('start detect U..................')
         ok, up_u, low_u, up_point, low_point = detectU(im, boxes, uimages, umasks, uboxes, im_name, DEBUG)
@@ -285,6 +285,27 @@ def detecting(im_url, debug=None):
         up_point = 0
         low_point = 0
 
+    # detect red light 
+    light_ok, light_locat = detect_redlight(im, im_name, True)
+    if low_u != up_u:
+        sum_u = up_u - low_u
+        height_u = (low_point - up_point) * 1.0 / sum_u
+        light_u = []
+        for light in light_locat:
+            curr_u = int(up_u - np.ceil((light[1] - up_point) / height_u))
+            light_u.append(curr_u)
+            cv2.circle(im_copy, (light[0], light[1]), light[2], (0,0,255), 5)
+            cv2.putText(im_copy, 'U: {}'.format(curr_u), (light[0], light[1]),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+    # detect equipment
+    final_result = []
+    empty = True
+
+    if len(uboxes) == 0 and len(boxes) == 0:
+        cv2.imwrite(image_file, im)
+        return False, [], image_file, []
+    
     if len(boxes) > 0 and ok:
         print('start detect all tags..................')
         detect = detect_tags(type_tag='ip', ratio=0.65, thresh_w=[18, 60], thresh_h=[34, 75], count=[], DEBUG=DEBUG,
@@ -305,7 +326,7 @@ def detecting(im_url, debug=None):
                     else:
                         u_index = res[1]
                         u = (int(res[1]), int(res[1]))
-                    cv2.putText(im, 'IP: ' + res[0] + ' U: ' + u_index, (boxes[ind][1], boxes[ind][0]),
+                    cv2.putText(im_copy, 'IP: ' + res[0] + ' U: ' + u_index, (boxes[ind][1], boxes[ind][0]),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     final_result.append({'IP': res[0], 'U': u})
                     tagboxes.append(boxes[ind])
@@ -316,7 +337,7 @@ def detecting(im_url, debug=None):
                     boxes.remove(box)
 
         # visulize IP
-        if ok and result:
+        if result:
             print('display ip information')
             print(len(boxes), len(result))
             for b, res in zip(boxes, result):
@@ -326,8 +347,7 @@ def detecting(im_url, debug=None):
                     boxes.remove(b)
                     result.remove(res)
 
-            sum_u = up_u - low_u
-            height_u = (low_point - up_point) * 1.0 / sum_u
+            
             '''
             # print(boxes)
             if result and boxes:
@@ -341,7 +361,7 @@ def detecting(im_url, debug=None):
                     start_u = int(round(up_u - (boxes[ind + 1][2] - up_point) / height_u))
                     # print(up_u - (boxes[ind][0] - up_point) / height_u - 1, up_u - (boxes[ind + 1][2] - up_point) / height_u)
                     u_list = np.arange(start_u, end_u + 1)
-                    cv2.putText(im, 'IP: {}, U: {}'.format(res, u_list),
+                    cv2.putText(im_copy, 'IP: {}, U: {}'.format(res, u_list),
                                 (boxes[ind][1], boxes[ind][0] + 50),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     final_result.append({'IP': res, 'U': (start_u, end_u)})
@@ -350,23 +370,23 @@ def detecting(im_url, debug=None):
             if result and boxes:
                 for ind in range(len(boxes)):
                     res = result[ind]
-                    curr_u = int(round(up_u - (boxes[ind][2] - up_point) / height_u))
-                    count_u =  (boxes[ind][2] - up_point) / height_u
-                    if count_u-np.floor(count_u) > 0.3:
-                        curr_u = int(up_u - np.ceil(count_u))
-                    else:
-                        curr_u = int(up_u - np.floor(count_u))
-                    print(count_u)
+                    curr_u = int(round(up_u - np.ceil(((boxes[ind][2]+boxes[ind][0])/2 - up_point) / height_u)))
+                    #count_u =  (boxes[ind][2] - up_point) / height_u
+                    #if count_u-np.floor(count_u) > 0.3:
+                    #    curr_u = int(up_u - np.ceil(count_u))
+                    #else:
+                    #    curr_u = int(up_u - np.floor(count_u))
+                    #print(count_u)
                     # print(up_u - (boxes[ind][0] - up_point) / height_u - 1, up_u - (boxes[ind + 1][2] - up_point) / height_u)
-                    cv2.putText(im, 'IP: {}, U: {}'.format(res, curr_u),
+                    cv2.putText(im_copy, 'IP: {}, U: {}'.format(res, curr_u),
                                 (boxes[ind][1], boxes[ind][0] + 50),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     final_result.append({'IP': res, 'U': curr_u})
                     empty = False
     if empty and ok:
-        cv2.putText(im, 'NULL', (500, 500), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 3)
+        cv2.putText(light_im, 'NULL', (500, 500), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 3)
 
-    cv2.imwrite(image_file, im)
+    cv2.imwrite(image_file, im_copy)
     end = time.time()
     print('spend time is: ', end-start)
-    return ok, final_result, image_file, u_range
+    return ok, final_result, image_file, u_range, light_ok, light_u
