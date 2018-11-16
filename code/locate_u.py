@@ -42,9 +42,9 @@ def detect_redlight(im, im_name, debug=None):
     ok = True
     lights = []
     if len(pro) > 0:
-        ok = False
         for p in pro:
             if p.area > 10:
+                ok = False
                 (x, y) = p.centroid
                 radius = x - p.bbox[0] + 10
                 lights.append((int(y), int(x), int(radius)))
@@ -287,6 +287,7 @@ def detecting(im_url, debug=None):
 
     # detect red light 
     light_ok, light_locat = detect_redlight(im, im_name, True)
+    light_u = []
     if low_u != up_u:
         sum_u = up_u - low_u
         height_u = (low_point - up_point) * 1.0 / sum_u
@@ -384,7 +385,7 @@ def detecting(im_url, debug=None):
                     final_result.append({'IP': res, 'U': curr_u})
                     empty = False
     if empty and ok:
-        cv2.putText(light_im, 'NULL', (500, 500), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 3)
+        cv2.putText(im_copy, 'NULL', (500, 500), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 3)
 
     cv2.imwrite(image_file, im_copy)
     end = time.time()
