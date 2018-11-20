@@ -29,6 +29,7 @@ def detect_redlight(im, im_name, debug=None):
     # Find red regions
     red_hue_low = [150, 100, 50]
     red_hue_high = [180, 255, 200]
+    height, width = im.shape[:2]
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     # Get lower hue
     kernel_size = []
@@ -43,9 +44,9 @@ def detect_redlight(im, im_name, debug=None):
     lights = []
     if len(pro) > 0:
         for p in pro:
-            if p.area > 10:
+            (x, y) = p.centroid
+            if 150 > p.area > 20 and 0.1*width <= y <= 0.85*width:
                 ok = False
-                (x, y) = p.centroid
                 radius = x - p.bbox[0] + 10
                 lights.append((int(y), int(x), int(radius)))
                 
