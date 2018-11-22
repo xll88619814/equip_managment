@@ -221,7 +221,7 @@ class detect_tags:
                 thresh[thresh > T] = 255
                 thresh[thresh <= T] = 0
                 thresh = cv2.bitwise_not(thresh)
-                # cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
+                #cv2.imwrite('code/train_nummodel/number/'+image_name+'_'+self.type+'_'+str(ind)+'_'+str(i)+'.jpg', thresh)
                 hist = self.hog.describe(thresh)
                 digit = self.model.predict([hist])[0]
 
@@ -256,17 +256,18 @@ class detect_tags:
             if not switch and not server:
                 if self.type == 'ip':
                     clusters = ''
-                    order = copy.deepcopy(dist)
-                    order.sort(reverse=True)
-                    #print('dist..........................', order,dist)
-                    for i, d in enumerate(digits[:-1]):
-                        if order.index(dist[i]) < 3:
-                            clusters = clusters + d + '.'
-                        else:
-                            clusters += d
-                    print(digits)
-                    clusters += digits[-1]
-                    #print(clusters)
+                    if dist:
+                        order = copy.deepcopy(dist)
+                        order.sort(reverse=True)
+                        #print('dist..........................', order,dist)
+                        for i, d in enumerate(digits[:-1]):
+                            if order.index(dist[i]) < 3:
+                                clusters = clusters + d + '.'
+                            else:
+                                clusters += d
+                        print('ip: ', digits)
+                        clusters += digits[-1]
+                        #print(clusters)
                 else:
                     clu = clusters[0]
                     clusters = clu
@@ -281,5 +282,6 @@ class detect_tags:
                 result_switch.append((ind, clusters))
             else:
                 result.append(clusters)
+        print('result: ', result)
         return result, result_switch
 
