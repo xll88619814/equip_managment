@@ -24,7 +24,6 @@ def create_hue_mask(image, lower_color, upper_color, kernel_size):
     else:
         return mask
 
-
 def detect_redlight(im, im_name, DEBUG):
     # Find red regions
     red_hue_low = [150, 100, 50]
@@ -118,8 +117,8 @@ def findminbox(im, x1, x2):
             x2 -= 2
         print(ratio)
 
-    cv2.imshow('box', im)
-    cv2.waitKey(0)
+    #cv2.imshow('box', im)
+    #cv2.waitKey(0)
     # print(x1,x2, im.shape)
     return x1, x2
     # else:
@@ -129,7 +128,7 @@ def findlastpoint(uboxes, boxes, low_u):
     print('len(bbox)', len(boxes))
     lastx = uboxes[1][2]
     if len(boxes) == 0:
-        return lastx
+        return lastx, low_u
     else:
         dist = []
         for b in boxes:
