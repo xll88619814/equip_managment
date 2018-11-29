@@ -65,7 +65,6 @@ def detect_redlight(im, im_name, DEBUG):
 def selectu(u_num, u_boxes):
     unum = []
     uboxes = []
-
     for ind, u in enumerate(u_num):
         if len(u) == 2:
             if int(u) <= 42 and int(u) >= 5:
@@ -79,19 +78,26 @@ def selectu(u_num, u_boxes):
     clusters = []
     cluster = []
     if len(uboxes) > 0:
-        cluster.append((unum[0], uboxes[0]))
+        cluster.append([unum[0], uboxes[0]])
         for ind, box in enumerate(uboxes[1:]):
             if abs(box[0] - uboxes[ind][0]) < 100:
-                cluster.append((unum[ind+1], box))
+                cluster.append([unum[ind+1], box])
             else:
                 clusters.append(cluster)
                 cluster = []
-                cluster.append((unum[ind+1], box))
+                cluster.append([unum[ind+1], box])
+        
         clusters.append(cluster)
         for ind, c in enumerate(clusters):
             if len(c) == 2:
                 if c[0][0] == c[1][0]:
+                    newx1 = (clusters[ind][0][1][0]+clusters[ind][1][1][0])/2
+                    newx2 = (clusters[ind][0][1][2]+clusters[ind][1][1][2])/2
+                    y1 = clusters[ind][0][1][1]
+                    y2 = clusters[ind][0][1][3]
+                    clusters[ind][0][1] = (newx1, y1, newx2, y2)
                     del clusters[ind][1]
+                    
                 else:
                     del clusters[ind]
     if len(clusters) >= 2:
@@ -143,11 +149,11 @@ def findlastpoint(uboxes, boxes, low_u):
     else:
         dist = []
         for b in boxes:
-            if uboxes[1][2] - b[2] >= 0:
-                dist.append(uboxes[1][2] - b[0])
+            if uboxes[1][2] - (b[2]+b[0])/2.0 >= 0:
+                dist.append(uboxes[1][2] - (b[2]+b[0])/2.0)
         print('dddddddlast',dist)
         index = dist.index(min(dist))
-        if 80 <= dist[index] <= 110:
+        if 80< dist[index] <= 110:
             lastx = boxes[index][2]
             low_u += 1
             print('last: ', low_u)
@@ -201,7 +207,7 @@ def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
 
         firstx = findfirstpoint(uboxes, boxes)
         lastx, low_u_new = findlastpoint(uboxes, boxes, low_u)
-        print('uboxes:', uboxes[0][2], 'first:', firstx)
+        print('uboxes:', uboxes[0][2], 'first:', firstx, 'last', lastx)
         region = im[firstx:lastx, :, :]
 
         up_point = firstx
@@ -223,7 +229,7 @@ def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
 
 def findalltags(im, im_name, DEBUG):
     print('start find all tags..........................')
-    lower_hue_low = [20, 60, 65]
+    lower_hue_low = [20, 60, 60]
     lower_hue_high = [32, 255, 255]
 
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
@@ -253,9 +259,10 @@ def findalltags(im, im_name, DEBUG):
         if 230 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 40 and 0.3 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.9:
             print('tag width!!!!!!!!!!!!!!!!!!!!!!!')
             x1, x2 = findminbox(mask_lower[x1:x2, y1:y2], x1, x2)
-            if 47 >= (x2-x1) >= 20:
+            #print('x1,x2', x1, x2)
+            if 51 >= (x2-x1) >= 20:
                 tagboxes.append((x1, y1, x2, y2))
-        if 40 <= y2-y1 <= 90 and 30 <= x2-x1 <= 65 and 2 > (y2-y1)*1.0/(x2-x1) > 1 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
+        if 50 <= y2-y1 <= 90 and 30 <= x2-x1 <= 65 and 2 > (y2-y1)*1.0/(x2-x1) > 1 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
             i += 1
             uboxes.append(p.bbox)
             x = 0 if x1-1 <= 0 else x1-1
@@ -314,13 +321,23 @@ def findalltags(im, im_name, DEBUG):
     return tagimages, tagmasks, tagboxes, uimages, umasks, uboxes
 
 
-def detecting(im_url, debug=None):
+def detecting(im_url, map1, map2, debug=None):
     start = time.time()
     DEBUG = debug
     im_name = im_url.split('/')[-1].split('.')[0]
     im = cv2.imread(im_url)
+    
+    image = np.zeros((1300, 2200, 3),dtype=np.uint8)
+    for i in range(1300):
+        for j in range(2200):
+            image[i, j] = [255, 255, 255]
+    
+    for i in range(110, 1190):
+        for j in range(140, 2060):
+            image[i,j,:] = im[i-110, j-140,:]
+    image = image.astype(np.uint8)
+    im = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
     #im = undistort(im)
-
     im_copy = im.copy()
 
     # save path of result image 

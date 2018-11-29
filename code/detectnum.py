@@ -205,7 +205,7 @@ class detect_tags:
                 max_w = max(dist)
             else:
                 max_w = 0
-            #print('dist..........................', dist)
+            print('dist..........................', dist, max_w)
 
             for i, c in enumerate(contours):
                 (x, y, w, h) = c
@@ -230,7 +230,7 @@ class detect_tags:
                 else:
                     digit = str(digit)
                 digits.append(digit)
-                # print('digit', digit)
+                print('digit', digit)
 
                 if self.type == 'u':
                     cluster += digit
@@ -241,7 +241,7 @@ class detect_tags:
                         if x - contours[i-1][0] <= max_w - 25:
                             cluster += digit
                         else:
-                            if 'S' in cluster and ('TC' in cluster or 'CH' in cluster or 'W' in cluster):
+                            if 'S' in cluster and ('TC' in cluster or 'CH' in cluster or 'W' in cluster) or 'TCH' in cluster:
                                 cluster = 'SWITCH'
                                 switch = True
                             elif 'SE' in cluster or 'ER' in cluster or 'SR' in cluster:
@@ -279,7 +279,12 @@ class detect_tags:
 
             print('clusters', clusters)
             if switch:
-                result_switch.append((ind, clusters))
+                if len(clusters) == 3:
+                    if clusters[1].isdigit() and clusters[2].isdigit():
+                        result_switch.append((ind, clusters))
+                else:
+                    if clusters[1].isdigit():
+                        result_switch.append((ind, clusters))
             else:
                 result.append(clusters)
         print('result: ', result)
