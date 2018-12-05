@@ -230,7 +230,7 @@ class detect_tags:
                 else:
                     digit = str(digit)
                 digits.append(digit)
-                print('digit', digit)
+                #print('digit', digit)
 
                 if self.type == 'u':
                     cluster += digit

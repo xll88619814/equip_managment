@@ -4,6 +4,7 @@ import time
 import numpy as np
 from skimage import measure
 from fisheye import undistort
+from warptrans import transimage
 from detectnum import detect_tags
 from config import config
 
@@ -321,12 +322,13 @@ def findalltags(im, im_name, DEBUG):
     return tagimages, tagmasks, tagboxes, uimages, umasks, uboxes
 
 
-def detecting(im_url, map1, map2, debug=None):
+def detecting(im_url, map1, map2, angle, debug=None):
     start = time.time()
     DEBUG = debug
     im_name = im_url.split('/')[-1].split('.')[0]
     im = cv2.imread(im_url)
-    
+    im = transimage(im, angle)
+    '''
     image = np.zeros((1300, 2200, 3),dtype=np.uint8)
     for i in range(1300):
         for j in range(2200):
@@ -337,6 +339,7 @@ def detecting(im_url, map1, map2, debug=None):
             image[i,j,:] = im[i-110, j-140,:]
     image = image.astype(np.uint8)
     im = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+    '''
     #im = undistort(im)
     im_copy = im.copy()
 
@@ -457,7 +460,7 @@ def detecting(im_url, map1, map2, debug=None):
                 for ind in range(len(boxes)):
                     res = result[ind]
                     count_u = ((boxes[ind][2]+boxes[ind][0])/2.0 - up_point) / height_u
-                    if count_u-np.floor(count_u) < 0.1:
+                    if count_u-np.floor(count_u) < 0.01:
                         curr_u = int(round(up_u - np.floor(count_u)))
                     else:
                         curr_u = int(round(up_u - np.ceil(count_u)))
