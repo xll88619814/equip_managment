@@ -8,7 +8,7 @@ def rad(x):
 def get_warpR(anglex, w, h):
     angley = 0
     anglez = 0
-    fov = 42
+    fov = 50
     r = 0
     # 镜头与图像间的距离，21为半可视角，算z的距离是为了保证在此可视角度下恰好显示整幅图像
     z = np.sqrt(w ** 2 + h ** 2) / 2 / np.tan(rad(fov / 2))

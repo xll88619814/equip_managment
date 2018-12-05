@@ -54,7 +54,9 @@ def upload_file(file_address):
 
 @route("/equip/:args")
 def index(args):
-    file_id = args
+    r = args.split(',', 1)
+    file_id = r[0]
+    angle = r[1]
     print("input args: file_id={}".format(file_id))
 
     im_file = get_bean(file_id)
@@ -62,7 +64,7 @@ def index(args):
     
     map1 = np.load("code/map1.npy")
     map2 = np.load("code/map2.npy")
-    ok, details,result_file, result_u,light_ok,light_u = detecting(im_file, map1, map2)
+    ok, details,result_file, result_u,light_ok,light_u = detecting(im_file, map1, map2, angle)
     final_result = {}
     final_details =[]
     print("details is{} ".format(details))
