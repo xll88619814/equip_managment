@@ -90,9 +90,9 @@ class detect_tags:
                                 contours.append((x, y, w, h))
                                 prerect = (x, y, w, h)
                                 i = i + 1
-                elif self.thresh_h[0] <= h <= self.thresh_h[1] and self.thresh_w[1] <= w <= 2*self.thresh_w[1]:
+                elif self.thresh_h[0] <= h <= self.thresh_h[1] and self.thresh_w[1] <= w <= 2*self.thresh_w[1]:#two num stick together
                     #print(w, h)
-                    if i == 0:
+                    if i == 0:     # the first two num stick together 
                         #print('subim:', x, y, w, h)
                         blurr = blurred.copy()
                         subim = blurr[y:y+h, x:x+w]
@@ -132,7 +132,7 @@ class detect_tags:
                             i += len(splitimages)
                             count = len(splitimages)
 
-        if not contours == []:
+        if not contours == []:      # Whether the all number is a row
             if not self.count == []:
                 while len(contours) > self.count:
                     sumy = 0

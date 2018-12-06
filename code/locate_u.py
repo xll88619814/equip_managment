@@ -233,7 +233,7 @@ def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
 
 def findalltags(im, im_name, DEBUG):
     print('start find all tags..........................')
-    lower_hue_low = [20, 60, 60]
+    lower_hue_low = [20, 60, 80]
     lower_hue_high = [32, 255, 255]
 
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
@@ -266,7 +266,7 @@ def findalltags(im, im_name, DEBUG):
             #print('x1,x2', x1, x2)
             if 51 >= (x2-x1) >= 20:
                 tagboxes.append((x1, y1, x2, y2))
-        if 50 <= y2-y1 <= 90 and 25 <= x2-x1 <= 60 and 2.3 > (y2-y1)*1.0/(x2-x1) > 1 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
+        if 45 <= y2-y1 <= 90 and 25 <= x2-x1 <= 60 and 2.3 > (y2-y1)*1.0/(x2-x1) > 1 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
             i += 1
             uboxes.append(p.bbox)
             x = 0 if x1-1 <= 0 else x1-1
@@ -316,7 +316,7 @@ def detecting(im_url, map1, map2, angle, debug=None):
     image = image.astype(np.uint8)
     im = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
     '''
-    im = transimage(im, int(angle))
+    im = transimage(im, float(angle))
     #im = undistort(im)
     im_copy = im.copy()
 
