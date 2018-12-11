@@ -313,13 +313,15 @@ def _get_black_border1(image):
 	return min_x, min_y, max_x, max_y + 1
 
 def recu(cutim, cutim_list):
-        #print('cut:', cutim.size)
-	if cutim.size[0] > 60:
-		split_images = _drop_fall(cutim)
-		recu(split_images[0], cutim_list)
-		recu(split_images[1], cutim_list)
-	elif cutim.size[0] > 25: 
-		img = np.asarray(cutim)
+    #print('cut:', cutim.size)
+    if cutim.size[0] > 60:
+        split_images = _drop_fall(cutim)
+	#recu(split_images[0], cutim_list)
+	#recu(split_images[1], cutim_list)
+	#elif  60 > cutim.size[0] > 25: 
+        for split_image in split_images:
+            if 60 > split_image.size[0] > 25: 
+		img = np.asarray(split_image)
 		gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 cutim_list.append(gray)
                 #cv2.imshow('cutttt',img)

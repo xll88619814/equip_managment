@@ -1,4 +1,5 @@
 import copy
+import time
 import cv2, os
 import cPickle
 import mahotas
@@ -61,7 +62,7 @@ class detect_tags:
 
         for (c, _) in cnts:
             (x, y, w, h) = cv2.boundingRect(c)
-            if x > 0 and y >= 0 and x+w < width and y+h <= height:
+            if x >= 0 and y >= 0 and x+w < width and y+h <= height:
                 if self.thresh_w[0] <= w <= self.thresh_w[1] and self.thresh_h[0] <= h <= self.thresh_h[1]:
                     if w*1.0/h < self.ratio:
                         if x - int(ceil((h*self.ratio-w)/2)) >= 0:
@@ -99,17 +100,18 @@ class detect_tags:
                         #cv2.imshow('im',subim)
                         #cv2.waitKey(0)
                         splitimages = get_splitimages(subim)
-                        for j, splitimg in enumerate(splitimages):
-                            h0, w0 = splitimg.shape
-                            if j == 0:
-                                contours.append((x, y , w0, h0))
-                                nextx = x + w0
-                            else:
-                                contours.append((nextx, y , w0, h0))
-                                nextx = nextx + w0
-                        prerect = (x, y, w, h)
-                        i += len(splitimages)
-                        count = len(splitimages)
+                        if splitimages:
+                            for j, splitimg in enumerate(splitimages):
+                                h0, w0 = splitimg.shape
+                                if j == 0:
+                                    contours.append((x, y , w0, h0))
+                                    nextx = x + w0
+                                else:
+                                    contours.append((nextx, y , w0, h0))
+                                    nextx = nextx + w0
+                            prerect = (x, y, w, h)
+                            i += len(splitimages)
+                            count = len(splitimages)
                     else:
                         iou = self.IOU(prerect, (x, y, w, h))
                         if iou < 0.2:
@@ -119,18 +121,18 @@ class detect_tags:
                             #cv2.imshow('subim', subim)
                             #cv2.waitKey(0)
                             splitimages = get_splitimages(subim)
-                            for j, splitimg in enumerate(splitimages):
-                                h0, w0 = splitimg.shape
-
-                                if j == 0:
-                                    contours.append((x, y, w0, h0))
-                                    nextx = x + w0
-                                else:
-                                    contours.append((nextx, y , w0, h0))
-                                    nextx = nextx + w0
-                            prerect = (x, y, w, h)
-                            i += len(splitimages)
-                            count = len(splitimages)
+                            if splitimages:
+                                for j, splitimg in enumerate(splitimages):
+                                    h0, w0 = splitimg.shape
+                                    if j == 0:
+                                        contours.append((x, y, w0, h0))
+                                        nextx = x + w0
+                                    else:
+                                        contours.append((nextx, y , w0, h0))
+                                        nextx = nextx + w0
+                                prerect = (x, y, w, h)
+                                i += len(splitimages)
+                                count = len(splitimages)
 
         if not contours == []:      # Whether the all number is a row
             if not self.count == []:
@@ -145,7 +147,6 @@ class detect_tags:
                     dist = []
                     for c in contours:
                         dist.append(abs(c[1]+c[3]*1.0/2-meany))
-                    print(dist)
                     ind = dist.index(max(dist))
                     del dist[ind]
                     del contours[ind]
@@ -205,7 +206,7 @@ class detect_tags:
                 max_w = max(dist)
             else:
                 max_w = 0
-            print('dist..........................', dist, max_w)
+            #print('dist..........................', dist, max_w)
 
             for i, c in enumerate(contours):
                 (x, y, w, h) = c

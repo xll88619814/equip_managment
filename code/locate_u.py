@@ -157,11 +157,11 @@ def findlastpoint(uboxes, boxes, low_u):
                 dist.append(uboxes[1][2] - (b[2]+b[0])/2.0)
         print('dddddddlast',dist)
         index = dist.index(min(dist))
-        if 80< dist[index] <= 110:
+        if 70< dist[index] <= 110:
             lastx = boxes[index][2]
             low_u += 1
             print('last: ', low_u)
-        elif 0 <= dist[index] <= 80:
+        elif 0 <= dist[index] <= 70:
             lastx = boxes[index][2]
 
     return lastx, low_u
@@ -181,7 +181,7 @@ def findfirstpoint(uboxes, boxes):
             index = dist.index(min(dist)) + 1
         print('index', index)
         # print(index, boxes[index][0])
-        if dist[index] <= 35:
+        if dist[index] <= 41:
             firstx = boxes[index][0]
 
     return firstx
@@ -232,15 +232,15 @@ def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
     return ok, up_u, low_u, low_u_new, up_point, low_point
 
 def findalltags(im, im_name, DEBUG):
-    print('start find all tags..........................')
-    lower_hue_low = [20, 60, 80]
+    print('start find IP tags..........................')
+    lower_hue_low = [20, 100, 100]
     lower_hue_high = [32, 255, 255]
 
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     kernel_size = (5, 5)
     mask_lower= create_hue_mask(hsv_image, lower_hue_low, lower_hue_high, kernel_size)
     if DEBUG:
-        result_image_path = os.path.join(DEBUG_DIR, im_name + "_tags.jpg")
+        result_image_path = os.path.join(DEBUG_DIR, im_name + "_IPtags.jpg")
         cv2.imwrite(result_image_path, mask_lower)
     labels = measure.label(mask_lower, connectivity=2)
     pro = measure.regionprops(labels)
@@ -252,7 +252,7 @@ def findalltags(im, im_name, DEBUG):
     uimages = []
     uboxes = []
     umasks = []
-    i = 0
+    
     im_copy = im.copy()
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
@@ -266,18 +266,7 @@ def findalltags(im, im_name, DEBUG):
             #print('x1,x2', x1, x2)
             if 51 >= (x2-x1) >= 20:
                 tagboxes.append((x1, y1, x2, y2))
-        if 45 <= y2-y1 <= 90 and 25 <= x2-x1 <= 60 and 2.3 > (y2-y1)*1.0/(x2-x1) > 1 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
-            i += 1
-            uboxes.append(p.bbox)
-            x = 0 if x1-1 <= 0 else x1-1
-            y = 0 if y1-1 <= 0 else y1-1
-            uimages.append(im[x:x2 + 1, y:y2 + 1, :])
-            umasks.append(mask_lower[x:x2 + 1, y:y2 + 1])
-            # uimages.append(im[x1:x2, y1:y2, :])
-            # umasks.append(mask_lower[x1:x2, y1:y2])
-            cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
-            print('u:', y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
-  
+
     for i, box in enumerate(tagboxes):
         (x1, y1, x2, y2) = box
         print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1))
@@ -292,6 +281,37 @@ def findalltags(im, im_name, DEBUG):
             # cv2.imwrite(result_image_path, im[x1:x2, y1-5:y2+5, :])
             cv2.imwrite(result_image_path, im[x1:x2, y1:y2, :])
         cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
+
+
+
+    print('start find U tags..........................')
+    lower_hue_low = [20, 58, 55]
+    lower_hue_high = [30, 255, 255]
+
+    hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
+    kernel_size = (5, 5)
+    mask_lower= create_hue_mask(hsv_image, lower_hue_low, lower_hue_high, kernel_size)
+    if DEBUG:
+        result_image_path = os.path.join(DEBUG_DIR, im_name + "_Utags.jpg")
+        cv2.imwrite(result_image_path, mask_lower)
+    labels = measure.label(mask_lower, connectivity=2)
+    pro = measure.regionprops(labels)
+    i = 0
+    for p in pro:
+        (x1, y1, x2, y2) = p.bbox
+        if 32 <= y2-y1 <= 80 and 28 <= x2-x1 <= 65 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.8 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.6:
+            i += 1
+            uboxes.append(p.bbox)
+            x = 0 if x1-1 <= 0 else x1-1
+            y = 0 if y1-1 <= 0 else y1-1
+            uimages.append(im[x:x2 + 1, y:y2 + 1, :])
+            umasks.append(mask_lower[x:x2 + 1, y:y2 + 1])
+            # uimages.append(im[x1:x2, y1:y2, :])
+            # umasks.append(mask_lower[x1:x2, y1:y2])
+            cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
+            print('u:', y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
+  
+    
     if DEBUG:
         result_image_path = os.path.join(DEBUG_DIR, im_name + ".jpg")
         cv2.imwrite(result_image_path, im_copy)
@@ -330,7 +350,7 @@ def detecting(im_url, map1, map2, angle, debug=None):
     # detect u tags
     u_range = []
     ok = True
-    if len(uboxes) > 0:
+    if len(uboxes) > 1 and len(boxes) > 0:
         print('start detect U..................')
         ok, up_u, low_u, low_u_new, up_point, low_point = detectU(im, boxes, uimages, umasks, uboxes, im_name, DEBUG)
         u_range = [low_u, up_u]
@@ -339,8 +359,10 @@ def detecting(im_url, map1, map2, angle, debug=None):
         print('no u tags')
         up_u = 0
         low_u = 0 
+        low_u_new = 0
         up_point = 0
         low_point = 0
+
 
     # detect equipment
     light_ok = True
@@ -382,8 +404,11 @@ def detecting(im_url, map1, map2, angle, debug=None):
                 for box in tagboxes:
                     boxes.remove(box)
 
+        if up_u == low_u and empty:
+            ok = False
+
         # visulize IP
-        if result:
+        if result and ok:
             print('display ip information')
             print(len(boxes), len(result))
             for b, res in zip(boxes, result):
