@@ -112,13 +112,17 @@ def selectu(u_num, u_boxes):
 
     return set_unum, boxes
 
-def findminbox(im, x1, x2):
+def findminbox(im, x1, x2, type_tag):
     # cv2.imshow('box', im)
     # cv2.waitKey(0)
     w = im.shape[1]
     ratio = np.sum(im == 255)*1.0/((x2-x1)*w)
     # print(ratio)
-    while ratio < 0.7:
+    if type_tag == 'u':
+        thresh_ratio = 0.8
+    else:
+        thresh_ratio = 0.7
+    while ratio < thresh_ratio:
         if x2-x1 < 20:
             return 0, 0
         ratio1 = np.sum(im[2:, :] == 255) * 1.0 / ((x2-x1-1) * w)
@@ -233,7 +237,7 @@ def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
 
 def findalltags(im, im_name, DEBUG):
     print('start find IP tags..........................')
-    lower_hue_low = [20, 100, 100]
+    lower_hue_low = [23, 100, 100]
     lower_hue_high = [32, 255, 255]
 
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
@@ -257,19 +261,19 @@ def findalltags(im, im_name, DEBUG):
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
         #print('tagcccccc:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
-        if 230 >= (y2-y1) >= 100 and 40 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.6:
-            #print(p.area*1.0/((x2-x1)*(y2-y1)))
+        if 230 >= (y2-y1) >= 100 and 40 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.58:
+            print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
             tagboxes.append(p.bbox)
-        if 230 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 40 and 0.3 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.9:
-            print('tag width!!!!!!!!!!!!!!!!!!!!!!!')
-            x1, x2 = findminbox(mask_lower[x1:x2, y1:y2], x1, x2)
-            #print('x1,x2', x1, x2)
+        if 230 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 40 and 0.4 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.9:
+            print('IP tag width!!!!!!!!!!!!!!!!!!!!!!!')
+            x1, x2 = findminbox(mask_lower[x1:x2, y1:y2], x1, x2, 'ip')
             if 51 >= (x2-x1) >= 20:
+                print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
                 tagboxes.append((x1, y1, x2, y2))
 
     for i, box in enumerate(tagboxes):
         (x1, y1, x2, y2) = box
-        print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1))
+        
         x1 = 0 if x1 - 1 < 0 else x1 - 1
         x2 = im.shape[0] if x2 + 1 > im.shape[0] else x2 + 1
         tagimages.append(im[x1:x2, y1-1:y2+1, :])
@@ -284,9 +288,9 @@ def findalltags(im, im_name, DEBUG):
 
 
 
-    print('start find U tags..........................')
-    lower_hue_low = [20, 58, 55]
-    lower_hue_high = [30, 255, 255]
+    print('start find U tags...........................')
+    lower_hue_low = [23, 58, 55]
+    lower_hue_high = [31, 255, 255]
 
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     kernel_size = (5, 5)
@@ -299,17 +303,27 @@ def findalltags(im, im_name, DEBUG):
     i = 0
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if 32 <= y2-y1 <= 80 and 28 <= x2-x1 <= 65 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.8 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.6:
-            i += 1
-            uboxes.append(p.bbox)
-            x = 0 if x1-1 <= 0 else x1-1
-            y = 0 if y1-1 <= 0 else y1-1
-            uimages.append(im[x:x2 + 1, y:y2 + 1, :])
-            umasks.append(mask_lower[x:x2 + 1, y:y2 + 1])
-            # uimages.append(im[x1:x2, y1:y2, :])
-            # umasks.append(mask_lower[x1:x2, y1:y2])
-            cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
+        if 39 <= y2-y1 <= 80 and 31 <= x2-x1 <= 45 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.9 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.7:
             print('u:', y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
+        elif 45 <= y2-y1 <= 80 and 45 < x2-x1 <= 75 and 1.5 > (y2-y1)*1.0/(x2-x1) > 0.6 and 1 > p.area*1.0/((x2-x1)*(y2-y1)) >= 0.4:
+            print('U tag width!!!!!!!!!!!!!!!!!!!!!!!')
+            x1, x2 = findminbox(mask_lower[x1:x2, y1:y2], x1, x2, 'u')
+            if (x2-x1) <= 31 or (x2-x1) >= 60:
+                continue
+            else:
+                print('u:', y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
+        else:
+            continue
+        i += 1
+        uboxes.append(p.bbox)
+        x = 0 if x1-1 <= 0 else x1-1
+        y = 0 if y1-1 <= 0 else y1-1
+        uimages.append(im[x:x2 + 1, y:y2 + 1, :])
+        umasks.append(mask_lower[x:x2 + 1, y:y2 + 1])
+        # uimages.append(im[x1:x2, y1:y2, :])
+        # umasks.append(mask_lower[x1:x2, y1:y2])
+        cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
+        
   
     
     if DEBUG:
