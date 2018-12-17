@@ -165,7 +165,9 @@ def findlastpoint(uboxes, boxes, low_u):
             lastx = boxes[index][2]
             low_u += 1
             print('last: ', low_u)
-        elif 0 <= dist[index] <= 70:
+        #elif 40 <= dist[index] <= 70:
+            #lastx = boxes[index][2]
+        elif 0 <= dist[index] <= 40:
             lastx = boxes[index][2]
 
     return lastx, low_u
@@ -192,7 +194,7 @@ def findfirstpoint(uboxes, boxes):
 
 def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
     if utags:
-        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[16, 45], thresh_h=[45, 73], count=2, DEBUG=DEBUG,
+        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[16, 45], thresh_h=[45, 71], count=2, DEBUG=DEBUG,
                              DEBUG_DIR=DEBUG_DIR)
         u_num, switch = detect.detect_num(utags, im_name, umasks)
     else:

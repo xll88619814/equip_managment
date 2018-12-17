@@ -62,7 +62,7 @@ class detect_tags:
 
         for (c, _) in cnts:
             (x, y, w, h) = cv2.boundingRect(c)
-            if x >= 0 and y > 0 and x+w < width and y+h <= height:
+            if x >= 0 and y > 0 and x+w < width and y+h < height-2:
                 if self.thresh_w[0] <= w <= self.thresh_w[1] and self.thresh_h[0] <= h <= self.thresh_h[1]:
                     if w*1.0/h < self.ratio:
                         if x - int(ceil((h*self.ratio-w)/2)) >= 0:
@@ -91,14 +91,14 @@ class detect_tags:
                                 contours.append((x, y, w, h))
                                 prerect = (x, y, w, h)
                                 i = i + 1
-                elif self.thresh_h[0] <= h <= self.thresh_h[1] and self.thresh_w[1] <= w <= 2*self.thresh_w[1]:#two num stick together
+                elif self.thresh_h[0] <= h <= self.thresh_h[1] and self.thresh_w[1] < w < 2*self.thresh_w[1]:#two num stick together
                     #print(w, h)
                     if i == 0:     # the first two num stick together 
                         #print('subim:', x, y, w, h)
                         blurr = blurred.copy()
                         subim = blurr[y:y+h, x:x+w]
-                        #cv2.imshow('im',subim)
-                        #cv2.waitKey(0)
+                        # cv2.imshow('im',subim)
+                        # cv2.waitKey(0)
                         splitimages = get_splitimages(subim)
                         if splitimages:
                             for j, splitimg in enumerate(splitimages):
