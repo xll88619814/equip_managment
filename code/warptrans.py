@@ -60,7 +60,6 @@ def get_warpR(anglex, w, h):
     return warpR
 
 def transimage(img, angle):
-    img = cv2.copyMakeBorder(img, 20, 40, 0, 0, cv2.BORDER_CONSTANT, value=[255, 255, 255])
     h, w = img.shape[0:2]
     warpR = get_warpR(angle, w, h)
     #print('warpR', warpR)

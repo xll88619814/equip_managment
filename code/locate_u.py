@@ -6,6 +6,7 @@ from skimage import measure
 from fisheye import undistort
 from warptrans import transimage
 from detectnum import detect_tags
+from houghtrans import houghtrans
 from config import config
 
 DEBUG_DIR = os.path.join(os.path.dirname(__file__), 'debug')
@@ -159,9 +160,9 @@ def findlastpoint(uboxes, boxes, low_u):
         for b in boxes:
             if uboxes[1][2] - (b[2]+b[0])/2.0 >= 0:
                 dist.append(uboxes[1][2] - (b[2]+b[0])/2.0)
-        print('dddddddlast',dist)
+        print('dddddddlast',uboxes[1][2], dist)
         index = dist.index(min(dist))
-        if 70< dist[index] <= 110:
+        if 75< dist[index] <= 110:
             lastx = boxes[index][2]
             low_u += 1
             print('last: ', low_u)
@@ -194,7 +195,7 @@ def findfirstpoint(uboxes, boxes):
 
 def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
     if utags:
-        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[16, 45], thresh_h=[45, 71], count=2, DEBUG=DEBUG,
+        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[14, 45], thresh_h=[45, 71], count=2, DEBUG=DEBUG,
                              DEBUG_DIR=DEBUG_DIR)
         u_num, switch = detect.detect_num(utags, im_name, umasks)
     else:
@@ -291,7 +292,7 @@ def findalltags(im, im_name, DEBUG):
 
 
     print('start find U tags...........................')
-    lower_hue_low = [23, 58, 55]
+    lower_hue_low = [23, 58, 45]
     lower_hue_high = [31, 255, 255]
 
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
@@ -305,19 +306,19 @@ def findalltags(im, im_name, DEBUG):
     i = 0
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if 39 <= y2-y1 <= 80 and 31 <= x2-x1 <= 45 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.9 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.7:
-            print('u:', y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
-        elif 45 <= y2-y1 <= 80 and 45 < x2-x1 <= 75 and 1.5 > (y2-y1)*1.0/(x2-x1) > 0.6 and 1 > p.area*1.0/((x2-x1)*(y2-y1)) >= 0.4:
+        if y1 > 100 and 39 <= y2-y1 <= 80 and 31 <= x2-x1 <= 45 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.9 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
+            print('u:', (x1, y1, x2, y2), y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
+        elif y1 > 100 and 45 <= y2-y1 <= 80 and 45 < x2-x1 <= 75 and 1.5 > (y2-y1)*1.0/(x2-x1) > 0.6 and 1 > p.area*1.0/((x2-x1)*(y2-y1)) >= 0.4:
             print('U tag width!!!!!!!!!!!!!!!!!!!!!!!')
             x1, x2 = findminbox(mask_lower[x1:x2, y1:y2], x1, x2, 'u')
             if (x2-x1) <= 31 or (x2-x1) >= 60:
                 continue
             else:
-                print('u:', y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
+                print('u:', (x1, y1, x2, y2), y2-y1, x2-x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
         else:
             continue
         i += 1
-        uboxes.append(p.bbox)
+        uboxes.append((x1, y1, x2, y2))
         x = 0 if x1-1 <= 0 else x1-1
         y = 0 if y1-1 <= 0 else y1-1
         uimages.append(im[x:x2 + 1, y:y2 + 1, :])
@@ -352,6 +353,10 @@ def detecting(im_url, map1, map2, angle, debug=None):
     image = image.astype(np.uint8)
     im = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
     '''
+    #if float(angle) == 0:
+    #    im = cv2.copyMakeBorder(im, 20, 30, 0, 0, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+    #else:     
+    im = houghtrans(im)
     im = transimage(im, float(angle))
     #im = undistort(im)
     im_copy = im.copy()
