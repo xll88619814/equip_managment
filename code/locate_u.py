@@ -162,7 +162,7 @@ def findlastpoint(uboxes, boxes, low_u):
                 dist.append(uboxes[1][2] - (b[2]+b[0])/2.0)
         print('dddddddlast',uboxes[1][2], dist)
         index = dist.index(min(dist))
-        if 75< dist[index] <= 110:
+        if 74 <= dist[index] <= 100:
             lastx = boxes[index][2]
             low_u += 1
             print('last: ', low_u)
@@ -336,7 +336,7 @@ def findalltags(im, im_name, DEBUG):
     return tagimages, tagmasks, tagboxes, uimages, umasks, uboxes
 
 
-def detecting(im_url, map1, map2, angle, debug=None):
+def detecting(im_url, angle, debug=None):
     start = time.time()
     DEBUG = debug
     im_name = im_url.split('/')[-1].split('.')[0]
@@ -353,12 +353,9 @@ def detecting(im_url, map1, map2, angle, debug=None):
     image = image.astype(np.uint8)
     im = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
     '''
-    #if float(angle) == 0:
-    #    im = cv2.copyMakeBorder(im, 20, 30, 0, 0, cv2.BORDER_CONSTANT, value=[255, 255, 255])
-    #else:     
+      
     im = houghtrans(im)
     im = transimage(im, float(angle))
-    #im = undistort(im)
     im_copy = im.copy()
 
     # save path of result image 
