@@ -120,9 +120,10 @@ def findminbox(im, x1, x2, type_tag):
     ratio = np.sum(im == 255)*1.0/((x2-x1)*w)
     # print(ratio)
     if type_tag == 'u':
-        thresh_ratio = 0.8
+        thresh_ratio = 0.78
     else:
         thresh_ratio = 0.7
+
     while ratio < thresh_ratio:
         if x2-x1 < 20:
             return 0, 0
@@ -141,7 +142,7 @@ def findminbox(im, x1, x2, type_tag):
             ratio = ratio1
             x1 += 2
             x2 -= 2
-        print(ratio)
+        print(ratio, x2-x1)
 
     #cv2.imshow('box', im)
     #cv2.waitKey(0)
@@ -188,14 +189,14 @@ def findfirstpoint(uboxes, boxes):
             index = dist.index(min(dist)) + 1
         print('index', index)
         # print(index, boxes[index][0])
-        if dist[index] <= 41:
+        if dist[index] <= 42:
             firstx = boxes[index][0]
 
     return firstx
 
 def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
     if utags:
-        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[14, 45], thresh_h=[45, 71], count=2, DEBUG=DEBUG,
+        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[14, 45], thresh_h=[44, 72], count=2, DEBUG=DEBUG,
                              DEBUG_DIR=DEBUG_DIR)
         u_num, switch = detect.detect_num(utags, im_name, umasks)
     else:
@@ -292,8 +293,8 @@ def findalltags(im, im_name, DEBUG):
 
 
     print('start find U tags...........................')
-    lower_hue_low = [23, 58, 45]
-    lower_hue_high = [31, 255, 255]
+    lower_hue_low = [23, 50, 45]
+    lower_hue_high = [33, 255, 255]
 
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     kernel_size = (5, 5)
@@ -306,12 +307,12 @@ def findalltags(im, im_name, DEBUG):
     i = 0
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if y1 > 100 and 39 <= y2-y1 <= 80 and 31 <= x2-x1 <= 45 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.9 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
+        if y1 > 80 and 39 <= y2-y1 <= 80 and 31 <= x2-x1 <= 45 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.9 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
             print('u:', (x1, y1, x2, y2), y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
-        elif y1 > 100 and 45 <= y2-y1 <= 80 and 45 < x2-x1 <= 75 and 1.5 > (y2-y1)*1.0/(x2-x1) > 0.6 and 1 > p.area*1.0/((x2-x1)*(y2-y1)) >= 0.4:
+        elif y1 > 80 and 45 <= y2-y1 <= 80 and 45 < x2-x1 <= 75 and 1.7 > (y2-y1)*1.0/(x2-x1) > 0.6 and 1 > p.area*1.0/((x2-x1)*(y2-y1)) >= 0.4:
             print('U tag width!!!!!!!!!!!!!!!!!!!!!!!')
             x1, x2 = findminbox(mask_lower[x1:x2, y1:y2], x1, x2, 'u')
-            if (x2-x1) <= 31 or (x2-x1) >= 60:
+            if (x2-x1) <= 30 or (x2-x1) >= 60:
                 continue
             else:
                 print('u:', (x1, y1, x2, y2), y2-y1, x2-x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
@@ -327,8 +328,6 @@ def findalltags(im, im_name, DEBUG):
         # umasks.append(mask_lower[x1:x2, y1:y2])
         cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
         
-  
-    
     if DEBUG:
         result_image_path = os.path.join(DEBUG_DIR, im_name + ".jpg")
         cv2.imwrite(result_image_path, im_copy)
@@ -368,7 +367,7 @@ def detecting(im_url, angle, debug=None):
     # detect u tags
     u_range = []
     ok = True
-    if len(uboxes) > 1 and len(boxes) > 0:
+    if len(uboxes) > 1:
         print('start detect U..................')
         ok, up_u, low_u, low_u_new, up_point, low_point = detectU(im, boxes, uimages, umasks, uboxes, im_name, DEBUG)
         u_range = [low_u, up_u]
@@ -388,10 +387,6 @@ def detecting(im_url, angle, debug=None):
     final_result = []
     empty = True
 
-    if len(uboxes) == 0 and len(boxes) == 0:
-        cv2.imwrite(image_file, im)
-        return False, final_result, image_file, u_range, light_ok, light_u
-    
     if len(boxes) > 0 and ok != False:
         print('start detect all tags..................')
         detect = detect_tags(type_tag='ip', ratio=0.65, thresh_w=[16, 60], thresh_h=[34, 75], count=[], DEBUG=DEBUG,
@@ -495,9 +490,12 @@ def detecting(im_url, angle, debug=None):
                                 (boxes[ind][1], boxes[ind][0] + 40),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     final_result.append({'IP': res, 'U': curr_u})
-
-    if empty and ok:
+    
+    if (len(boxes) == 0 or empty) and ok:
         cv2.putText(im_copy, 'NULL', (500, 500), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 3)
+        cv2.imwrite(image_file, im_copy)
+        return ok, final_result, image_file, u_range, light_ok, light_u
+        
     elif not ok:
         ok = False
         cv2.putText(im_copy, 'False', (500, 500), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 3)
