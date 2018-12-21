@@ -3,13 +3,12 @@ import cv2
 import time
 import numpy as np
 from skimage import measure
-#from fisheye import undistort
+from fisheye import undistort
 from warptrans import transimage
 from detectnum import detect_tags
 from houghtrans import houghtrans
-from detectlight import detect_light
-from config import config
-from db_connecttion.MySqlConn_gxxj import Mysql
+#from config import config
+#from db_connecttion.MySqlConn_gxxj import Mysql
 
 DEBUG_DIR = os.path.join(os.path.dirname(__file__), 'debug')
 DEBUG = False
@@ -29,32 +28,45 @@ def create_hue_mask(image, lower_color, upper_color, kernel_size):
     else:
         return mask
 
-def get_bean(detectsetid):
-    mysql = Mysql()
-    sql = "SELECT detect_setting FROM rb_detect_setting WHERE detect_setting_id = %s"
-    param = []
-    param.append(detectsetid)
-    result = mysql.getOne(sql, param)
-    if result:
-        data = result["detect_setting"]
-        mysql.dispose()
-        return data
-    else:
-        return False
+def detect_redlight(im, im_name, DEBUG):
+    # Find red regions
+    red_hue_low = [150, 60, 80]
+    red_hue_high = [180, 255, 255]
+    height, width = im.shape[:2]
+    hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
+    # Get lower hue
+    kernel_size = []
+    mask_lower1= create_hue_mask(hsv_image, red_hue_low, red_hue_high, kernel_size)
 
-def analyze_data(datas):
-    #data = json.loads(data)
-    rows = len(datas)
-    print('rows:', rows)
-    LIGHT = False
-    EQUIP = False
-    for row in datas:
-        print('raw:', raw)
-        if row['type'] == '8':
-            EQUIP = True
-        elif row['type'] == '1':
-            LIGHT = True
-    return LIGHT, EQUIP
+    red_hue_low = [0, 100, 80]
+    red_hue_high = [13, 255, 230]
+    height, width = im.shape[:2]
+    hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
+    # Get lower hue
+    kernel_size = []
+    mask_lower2= create_hue_mask(hsv_image, red_hue_low, red_hue_high, kernel_size)  
+    mask_lower = mask_lower1 + mask_lower2
+    if DEBUG:
+        result_image_path = os.path.join(DEBUG_DIR, im_name + "_redlight.jpg")
+        cv2.imwrite(result_image_path, mask_lower)
+    # Find suitable equipment labels
+    labels = measure.label(mask_lower, connectivity=2)
+    pro = measure.regionprops(labels)
+    ok = True
+    lights = []
+    if len(pro) > 0:
+        for p in pro:
+            (x, y) = p.centroid
+            w = p.bbox[3]-p.bbox[1]
+            h = p.bbox[2]-p.bbox[0]
+            ratio = max(w, h) / min(w, h)
+            if 130 >= p.area >= 40 and ratio <= 3 and 0.1*width <= y <= 0.85*width :
+                ok = False
+                radius = x - p.bbox[0] + 10
+                lights.append((int(y), int(x), int(radius), int(p.area)))
+                #print('light', p.area, ratio)
+                
+    return ok, lights
 
 def selectu(u_num, u_boxes):
     unum = []
@@ -216,89 +228,17 @@ def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
         if DEBUG:
             result_image_path = os.path.join(DEBUG_DIR, im_name + "_jigui.jpg")
             cv2.imwrite(result_image_path, region)
-    elif len(utags) <= 2 and len(set_unum) < 2:
+    elif len(utags) <= 2:
         ok = 'TF'
         up_point = 0
         low_point = 0
-    elif len(utags) > 2 and len(set_unum) < 2:
+    else:
         ok = False
         up_point = 0
         low_point = 0
         # print('detect u incorrectly')
 
     return ok, up_u, low_u, low_u_new, up_point, low_point
-
-def detectIP(im, ok, tagimages, tagmasks, boxes, uboxes, up_u, low_u_new, low_point, up_point, im_name, DEBUG):
-    print('start detect all tags..................')
-    detect = detect_tags(type_tag='ip', ratio=0.65, thresh_w=[16, 60], thresh_h=[34, 75], count=[], DEBUG=DEBUG,
-                         DEBUG_DIR=DEBUG_DIR)
-    result, result_switch = detect.detect_num(tagimages, im_name, tagmasks)
-    print(len(boxes), len(result), len(result_switch))
-
-    
-    empty = True
-    final_result = []
-    # visulize SWITCH
-    if result_switch:
-        print('display switch information')
-        tagboxes = []
-        for ind, res in result_switch:
-            print(up_point, boxes[ind][0], boxes[ind][2], low_point+10, len(uboxes))
-            tagboxes.append(boxes[ind])
-            if (up_point <= boxes[ind][0] and boxes[ind][2] <= low_point+10) or (len(uboxes) <= 2 and low_u_new == up_u):
-                if len(res) == 3:
-                    u_index = res[1] + '~' + res[2]
-                    u = (int(res[1]), int(res[2]))
-                else:
-                    u_index = res[1]
-                    u = (int(res[1]), int(res[1]))
-                cv2.putText(im, 'IP: ' + res[0] + ' U: ' + u_index, (boxes[ind][1], boxes[ind][0]),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                final_result.append({'IP': res[0], 'U': u})      
-                empty = False
-
-        if tagboxes:
-            for box in tagboxes:
-                boxes.remove(box)
-
-    # the number of u is less than two and is not switch
-    if up_u == low_u_new and empty:
-        ok = False
-
-    if ok == 'TF' and final_result == []:
-        ok = False
-    elif ok == 'TF' and final_result != []:
-        ok = True
-
-    # visulize IP
-    if result and ok and low_u_new != up_u:
-        sum_u = up_u - low_u_new
-        height_u = (low_point - up_point) * 1.0 / sum_u
-        print('display ip information')
-        for b, res in zip(boxes, result):
-            if up_point <= b[0] and b[2] <= low_point+10 and res:
-                continue
-            else:
-                boxes.remove(b)
-                result.remove(res)
-        print(len(boxes), len(result))
-        
-        if boxes:
-            empty = False
-            for ind in range(len(boxes)):
-                res = result[ind]
-                count_u = ((boxes[ind][2]+boxes[ind][0])/2.0 - up_point) / height_u
-                if count_u-np.floor(count_u) < 0.01:
-                    curr_u = int(round(up_u - np.floor(count_u)))
-                else:
-                    curr_u = int(round(up_u - np.ceil(count_u)))
-                print(((boxes[ind][2]+boxes[ind][0])/2.0 - up_point) / height_u)
-                cv2.putText(im, 'IP: {}, U: {}'.format(res, curr_u), (boxes[ind][1], boxes[ind][0] + 40),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                final_result.append({'IP': res, 'U': curr_u})
-
-    return ok, im, final_result, empty
-
 
 def findalltags(im, im_name, DEBUG):
     print('start find IP tags..........................')
@@ -338,6 +278,7 @@ def findalltags(im, im_name, DEBUG):
 
     for i, box in enumerate(tagboxes):
         (x1, y1, x2, y2) = box
+        
         x1 = 0 if x1 - 1 < 0 else x1 - 1
         x2 = im.shape[0] if x2 + 1 > im.shape[0] else x2 + 1
         tagimages.append(im[x1:x2, y1-1:y2+1, :])
@@ -349,6 +290,7 @@ def findalltags(im, im_name, DEBUG):
             # cv2.imwrite(result_image_path, im[x1:x2, y1-5:y2+5, :])
             cv2.imwrite(result_image_path, im[x1:x2, y1:y2, :])
         cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)
+
 
 
     print('start find U tags...........................')
@@ -366,7 +308,7 @@ def findalltags(im, im_name, DEBUG):
     i = 0
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if y1 > 80 and 41 <= y2-y1 <= 80 and 31 <= x2-x1 <= 45 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.9 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
+        if y1 > 80 and 39 <= y2-y1 <= 80 and 31 <= x2-x1 <= 45 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.9 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
             print('u:', (x1, y1, x2, y2), y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
         elif y1 > 80 and 45 <= y2-y1 <= 80 and 45 < x2-x1 <= 75 and 1.7 > (y2-y1)*1.0/(x2-x1) > 0.6 and 1 > p.area*1.0/((x2-x1)*(y2-y1)) >= 0.4:
             print('U tag width!!!!!!!!!!!!!!!!!!!!!!!')
@@ -393,28 +335,35 @@ def findalltags(im, im_name, DEBUG):
 
     return tagimages, tagmasks, tagboxes, uimages, umasks, uboxes
 
-def detecting(im_url, angle, detectsetid, debug=None):
+
+def detecting(im_url, angle, debug=None):
     start = time.time()
     DEBUG = debug
     im_name = im_url.split('/')[-1].split('.')[0]
     im = cv2.imread(im_url)
-    #if get_bean(detectsetid):
-    #    data = get_bean(detectsetid)
-    #else:
-    #    return False, None, None, None, None, None
-    #LIGHT, EQUIP = analyze_data(data)
-    LIGHT = True
-    EQUIP = True
+
+    '''
+    image = np.zeros((1300, 2200, 3),dtype=np.uint8)
+    for i in range(1300):
+        for j in range(2200):
+            image[i, j] = [255, 255, 255]
+    
+    for i in range(110, 1190):
+        for j in range(140, 2060):
+            image[i,j,:] = im[i-110, j-140,:]
+    image = image.astype(np.uint8)
+    im = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+    '''
       
     im = houghtrans(im)
     im = transimage(im, float(angle))
     im_copy = im.copy()
 
     # save path of result image 
-    image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
-    #image_file = os.path.join('code/result', im_name + '.jpg')
+    #image_file = os.path.join(config.DETECT_IMAGE_PATH, im_name + '.jpg')
+    image_file = os.path.join('code/result', im_name + '.jpg')
 
-    # find U tags
+    # find all tags
     tagimages, tagmasks, boxes, uimages, umasks, uboxes = findalltags(im, im_name, DEBUG)
 
     # detect u tags
@@ -433,26 +382,125 @@ def detecting(im_url, angle, detectsetid, debug=None):
         up_point = 0
         low_point = 0
 
+
+    # detect equipment
     light_ok = True
     light_u = []
-    print(low_u,  up_u, boxes)
-    if LIGHT and low_u != up_u and boxes:
-        # detect light
-        print('start detect light..................')
-        im_copy, light_ok, light_u = detect_light(im, im_name, up_u, low_u_new, low_point, up_point, DEBUG, DEBUG_DIR)
-
     final_result = []
     empty = True
-    if EQUIP and len(boxes) > 0 and ok != False:
-        # detect equipment
-        ok, im_copy, final_result, empty = detectIP(im_copy, ok, tagimages, tagmasks, boxes,  uboxes, up_u, low_u_new, low_point, up_point, im_name, DEBUG)
+
+    if len(boxes) > 0 and ok != False:
+        print('start detect all tags..................')
+        detect = detect_tags(type_tag='ip', ratio=0.65, thresh_w=[16, 60], thresh_h=[34, 75], count=[], DEBUG=DEBUG,
+                             DEBUG_DIR=DEBUG_DIR)
+        result, result_switch = detect.detect_num(tagimages, im_name, tagmasks)
+        print(len(boxes), len(result), len(result_switch))
+        # visulize SWITCH
+        if result_switch:
+            print('display switch information')
+            tagboxes = []
+            for ind, res in result_switch:
+                print(up_point, boxes[ind][0], boxes[ind][2], low_point+10, len(uboxes))
+                tagboxes.append(boxes[ind])
+                if (up_point <= boxes[ind][0] and boxes[ind][2] <= low_point+10) or (len(uboxes) <= 2 and low_u == up_u):
+                    print('111111111111111111111')
+                    if len(res) == 3:
+                        u_index = res[1] + '~' + res[2]
+                        u = (int(res[1]), int(res[2]))
+                    else:
+                        u_index = res[1]
+                        u = (int(res[1]), int(res[1]))
+                    cv2.putText(im_copy, 'IP: ' + res[0] + ' U: ' + u_index, (boxes[ind][1], boxes[ind][0]),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    final_result.append({'IP': res[0], 'U': u})      
+                    empty = False
+
+            if tagboxes:
+                for box in tagboxes:
+                    boxes.remove(box)
+
+        if up_u == low_u and empty:
+            ok = False
+
+        # visulize IP
+        if result and ok:
+            print('display ip information')
+            print(len(boxes), len(result))
+            for b, res in zip(boxes, result):
+                if up_point <= b[0] and b[2] <= low_point+10 and res:
+                    continue
+                else:
+                    boxes.remove(b)
+                    result.remove(res)
+            print(len(boxes), len(result))
+            
+            if ok == 'TF' and final_result==[]:
+                ok = False
+            else:
+                ok = True
+            '''
+            # print(boxes)
+            if result and boxes:
+                count =len(result)-1 if len(result)%2 != 0 else len(result)
+                for ind in range(0, count, 2):
+                    res1 = result[ind + 1]
+                    res2 = result[ind]
+                    res = res1 if len(res1) >= len(res2) else res2
+                    # print(boxes[ind][0], boxes[ind + 1][2])
+                    end_u = int(round(up_u - (boxes[ind][0] - up_point) / height_u) - 1)
+                    start_u = int(round(up_u - (boxes[ind + 1][2] - up_point) / height_u))
+                    # print(up_u - (boxes[ind][0] - up_point) / height_u - 1, up_u - (boxes[ind + 1][2] - up_point) / height_u)
+                    u_list = np.arange(start_u, end_u + 1)
+                    cv2.putText(im_copy, 'IP: {}, U: {}'.format(res, u_list),
+                                (boxes[ind][1], boxes[ind][0] + 50),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    final_result.append({'IP': res, 'U': (start_u, end_u)})
+
+            '''
+           
+            if result and boxes:
+                # detect red light 
+    		light_ok, light_locat = detect_redlight(im, im_name, DEBUG)
+    		if low_u != up_u:
+        	    sum_u = up_u - low_u_new
+                    height_u = (low_point - up_point) * 1.0 / sum_u
+                    for light in light_locat:
+                        if boxes[0][0] <= light[1] <= low_point:
+                            print('light: ', light[3])
+                            curr_u = int(up_u - np.ceil((light[1] - up_point) / height_u))
+            		    light_u.append(curr_u)
+            		    cv2.circle(im_copy, (light[0], light[1]), light[2], (0,0,255), 5)
+            		    cv2.putText(im_copy, 'U: {}'.format(curr_u), (light[0], light[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+                empty = False
+              
+                for ind in range(len(boxes)):
+                    res = result[ind]
+                    count_u = ((boxes[ind][2]+boxes[ind][0])/2.0 - up_point) / height_u
+                    if count_u-np.floor(count_u) < 0.01:
+                        curr_u = int(round(up_u - np.floor(count_u)))
+                    else:
+                        curr_u = int(round(up_u - np.ceil(count_u)))
+                    #count_u =  (boxes[ind][2] - up_point) / height_u
+                    #if count_u-np.floor(count_u) > 0.3:
+                    #    curr_u = int(up_u - np.ceil(count_u))
+                    #else:
+                    #    curr_u = int(up_u - np.floor(count_u))
+                    #print(count_u)
+                    print(((boxes[ind][2]+boxes[ind][0])/2.0 - up_point) / height_u)
+                    cv2.putText(im_copy, 'IP: {}, U: {}'.format(res, curr_u),
+                                (boxes[ind][1], boxes[ind][0] + 40),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    final_result.append({'IP': res, 'U': curr_u})
     
-    print('ok: ', ok)
     if (len(boxes) == 0 or empty) and ok:
         cv2.putText(im_copy, 'NULL', (500, 500), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 3)
+        cv2.imwrite(image_file, im_copy)
+        return ok, final_result, image_file, u_range, light_ok, light_u
+        
     elif not ok:
+        ok = False
         cv2.putText(im_copy, 'False', (500, 500), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 3)
-
     cv2.imwrite(image_file, im_copy)
     end = time.time()
     print('spend time is: ', end-start)
