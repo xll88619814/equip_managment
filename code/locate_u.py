@@ -398,13 +398,13 @@ def detecting(im_url, angle, detectsetid, debug=None):
     DEBUG = debug
     im_name = im_url.split('/')[-1].split('.')[0]
     im = cv2.imread(im_url)
-    #if get_bean(detectsetid):
-    #    data = get_bean(detectsetid)
-    #else:
-    #    return False, None, None, None, None, None
-    #LIGHT, EQUIP = analyze_data(data)
-    LIGHT = True
-    EQUIP = True
+    if get_bean(detectsetid):
+        data = get_bean(detectsetid)
+    else:
+        return False, None, None, None, None, None
+    LIGHT, EQUIP = analyze_data(data)
+    #LIGHT = True
+    #EQUIP = True
       
     im = houghtrans(im)
     im = transimage(im, float(angle))
