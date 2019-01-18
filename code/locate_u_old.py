@@ -278,7 +278,6 @@ def findalltags(im, im_name, DEBUG):
 
     for i, box in enumerate(tagboxes):
         (x1, y1, x2, y2) = box
-        
         x1 = 0 if x1 - 1 < 0 else x1 - 1
         x2 = im.shape[0] if x2 + 1 > im.shape[0] else x2 + 1
         tagimages.append(im[x1:x2, y1-1:y2+1, :])

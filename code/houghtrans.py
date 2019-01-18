@@ -16,7 +16,6 @@ def houghtrans(img):
     rotate_angle = 0
     print(lines[0])
     for rho, theta in lines[0]:
-        print(rho, theta)
         a = np.cos(theta)
         b = np.sin(theta)
         x0 = a * rho
@@ -34,7 +33,14 @@ def houghtrans(img):
             rotate_angle = -90 + rotate_angle
         elif rotate_angle < -45:
             rotate_angle = 90 + rotate_angle
-    #cv2.imwrite('line.jpg', img_copy)
+        print(rotate_angle)
+    cv2.imwrite('line.jpg', img_copy)
     print("rotate_angle : "+str(rotate_angle))
     rotate_img = ndimage.rotate(img, rotate_angle, cval=255)
     return rotate_img
+
+'''
+if __name__ == '__main__':
+    im = cv2.imread('test_images/1.jpg')
+    img = houghtrans(im)
+'''
