@@ -1,6 +1,7 @@
 import os
 import cv2
 import time
+import json
 import numpy as np
 from skimage import measure
 #from fisheye import undistort
@@ -43,7 +44,7 @@ def get_bean(detectsetid):
         return False
 
 def analyze_data(datas):
-    #data = json.loads(data)
+    datas = json.loads(datas)
     rows = len(datas)
     print('rows:', rows)
     LIGHT = False
@@ -102,20 +103,52 @@ def selectu(u_num, u_boxes):
 
     return set_unum, boxes
 
-def findminbox(im, x1, x2, type_tag):
-    # cv2.imshow('box', im)
-    # cv2.waitKey(0)
+def findminbox(im, box, thresh_ratio, w_thresh, h_thresh):
+    print('tag !!!!!!!!!!!!!!!!!!!!!!!')
+    h, w = im.shape
+    ratio = np.sum(im == 255)*1.0/(h*w)
+  
+    x1, y1, x2, y2 = box
+    while ratio < thresh_ratio:
+        h, w = im.shape
+        if x2-x1 < h_thresh or y2-y1 < w_thresh:
+            return False, 0, 0, 0, 0
+        ratio1 = np.sum(im[2:, :] == 255) * 1.0 / ((x2-x1-1) * w)
+        ratio2 = np.sum(im[:-2, :] == 255) * 1.0 / ((x2-x1-1) * w)
+        ratio3 = np.sum(im[:, 2:] == 255) * 1.0 / ((y2-y1-1) * h)
+        ratio4 = np.sum(im[:, :-2] == 255) * 1.0 / ((y2-y1-1) * h)
+        ratio_max = np.max([ratio1, ratio2, ratio3, ratio4])
+        if ratio_max == ratio1:
+            im = im[2:, :]
+            ratio = ratio1
+            x1 += 2
+        elif ratio_max == ratio2:
+            im = im[:-2, :]
+            ratio = ratio2
+            x2 -= 2
+        elif ratio_max == ratio3:
+            im = im[:, 2:]
+            ratio = ratio3
+            y1 += 2
+        elif ratio_max == ratio4:
+            im = im[:, :-2]
+            ratio = ratio2
+            y2 -= 2
+        print(ratio, x2-x1, y2-y1, [ratio1, ratio2, ratio3, ratio4])
+
+    return True, x1, y1, x2, y2
+
+
+def findminbox_x(im, x1, x2, thresh_ratio):
+    print('IP tag hight!!!!!!!!!!!!!!!!!!!!!!!')
     w = im.shape[1]
     ratio = np.sum(im == 255)*1.0/((x2-x1)*w)
-    # print(ratio)
-    if type_tag == 'u':
-        thresh_ratio = 0.78
-    else:
-        thresh_ratio = 0.7
 
+    x1_copy = x1
+    x2_copy = x2
     while ratio < thresh_ratio:
         if x2-x1 < 20:
-            return 0, 0
+            return False, x1_copy, x2_copy
         ratio1 = np.sum(im[2:, :] == 255) * 1.0 / ((x2-x1-1) * w)
         ratio2 = np.sum(im[:-2, :] == 255) * 1.0 / ((x2-x1-1) * w)
         if ratio1 > ratio2:
@@ -133,14 +166,36 @@ def findminbox(im, x1, x2, type_tag):
             x2 -= 2
         print(ratio, x2-x1)
 
-    #cv2.imshow('box', im)
-    #cv2.waitKey(0)
-    # print(x1,x2, im.shape)
-    return x1, x2
-    # else:
-    #     return []
+    return True, x1, x2
 
-def findlastpoint(uboxes, boxes, low_u):
+def findminbox_y(im, x1, x2, thresh_ratio):
+    print('IP tag width!!!!!!!!!!!!!!!!!!!!!!!')
+    w = im.shape[0]
+    ratio = np.sum(im == 255)*1.0/((x2-x1)*w)
+
+    while ratio < thresh_ratio:
+        if x2-x1 < 30:
+            return 0, 0
+        ratio1 = np.sum(im[:, 2:] == 255) * 1.0 / ((x2-x1-1) * w)
+        ratio2 = np.sum(im[:, :-2] == 255) * 1.0 / ((x2-x1-1) * w)
+        if ratio1 > ratio2:
+            im = im[:, 2:]
+            ratio = ratio1
+            x1 += 2
+        elif ratio1 < ratio2:
+            im = im[:, :-2]
+            ratio = ratio2
+            x2 -= 2
+        else:
+            im = im[:, 2:-2]
+            ratio = ratio1
+            x1 += 2
+            x2 -= 2
+        print(ratio, x2-x1)
+
+    return x1, x2
+
+def findlastpoint(uboxes, boxes, low_u, angle):
     print('len(bbox)', len(boxes))
     lastx = uboxes[1][2]
     if len(boxes) == 0:
@@ -163,9 +218,13 @@ def findlastpoint(uboxes, boxes, low_u):
 
     return lastx, low_u
 
-def findfirstpoint(uboxes, boxes):
+def findfirstpoint(uboxes, boxes, angle):
     print('len(bbox)', len(boxes))
     firstx = uboxes[0][2] - 10
+    if angle == 0:
+        dist_thresh = 30
+    else:
+        dist_thresh = 42
     if len(boxes) == 0:
         return firstx
     else:
@@ -178,14 +237,14 @@ def findfirstpoint(uboxes, boxes):
             index = dist.index(min(dist)) + 1
         print('index', index)
         # print(index, boxes[index][0])
-        if dist[index] <= 42:
+        if dist[index] <= dist_thresh:
             firstx = boxes[index][0]
 
     return firstx
 
-def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
+def detectU(im, boxes, utags, umasks, uboxes, im_name, angle, DEBUG):
     if utags:
-        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[14, 45], thresh_h=[44, 72], count=2, DEBUG=DEBUG,
+        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[13, 45], thresh_h=[43, 72], count=2, DEBUG=DEBUG,
                              DEBUG_DIR=DEBUG_DIR)
         u_num, switch = detect.detect_num(utags, im_name, umasks)
     else:
@@ -206,8 +265,8 @@ def detectU(im, boxes, utags, umasks, uboxes, im_name, DEBUG):
         up_u = int(set_unum[0])
         low_u = int(set_unum[1])
 
-        firstx = findfirstpoint(uboxes, boxes)
-        lastx, low_u_new = findlastpoint(uboxes, boxes, low_u)
+        firstx = findfirstpoint(uboxes, boxes, angle)
+        lastx, low_u_new = findlastpoint(uboxes, boxes, low_u, angle)
         print('uboxes:', uboxes[0][2], 'first:', firstx, 'last', lastx)
         region = im[firstx:lastx, :, :]
 
@@ -330,9 +389,8 @@ def findalltags(im, im_name, DEBUG):
             print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
             tagboxes.append(p.bbox)
         if 230 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 40 and 0.4 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.9:
-            print('IP tag width!!!!!!!!!!!!!!!!!!!!!!!')
-            x1, x2 = findminbox(mask_lower[x1:x2, y1:y2], x1, x2, 'ip')
-            if 51 >= (x2-x1) >= 20:
+            ok, x1, y1, x2, y2 = findminbox(mask_lower[x1:x2, y1:y2], p.bbox, 0.7, 100, 20)
+            if 51 >= (x2-x1) >= 20 and ok:
                 print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
                 tagboxes.append((x1, y1, x2, y2))
 
@@ -352,7 +410,7 @@ def findalltags(im, im_name, DEBUG):
 
 
     print('start find U tags...........................')
-    lower_hue_low = [23, 50, 45]
+    lower_hue_low = [23, 55, 45]
     lower_hue_high = [33, 255, 255]
 
     hsv_image = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
@@ -366,15 +424,25 @@ def findalltags(im, im_name, DEBUG):
     i = 0
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
-        if y1 > 80 and 41 <= y2-y1 <= 80 and 31 <= x2-x1 <= 45 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.9 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
+        if 41 <= y2-y1 <= 92 and 31 <= x2-x1 <= 45 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.9 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
             print('u:', (x1, y1, x2, y2), y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
-        elif y1 > 80 and 45 <= y2-y1 <= 80 and 45 < x2-x1 <= 75 and 1.7 > (y2-y1)*1.0/(x2-x1) > 0.6 and 1 > p.area*1.0/((x2-x1)*(y2-y1)) >= 0.4:
-            print('U tag width!!!!!!!!!!!!!!!!!!!!!!!')
-            x1, x2 = findminbox(mask_lower[x1:x2, y1:y2], x1, x2, 'u')
-            if (x2-x1) <= 30 or (x2-x1) >= 60:
-                continue
-            else:
+        elif 45 <= y2-y1 <= 95 and 45 < x2-x1 <= 75 and 2 > (y2-y1)*1.0/(x2-x1) > 0.6 and 1 > p.area*1.0/((x2-x1)*(y2-y1)) >= 0.4:
+            #if y2-y1 > 60:
+            #    y1, y2 = findminbox_y(mask_lower[x1:x2, y1:y2], y1, y2, 0.85)
+            #ok, x1, x2 = findminbox_x(mask_lower[x1:x2, y1:y2], x1, x2, 0.755)
+          
+            ok, x1, y1, x2, y2 = findminbox(mask_lower[x1:x2, y1:y2], p.bbox, 0.85, 40, 30)
+            print('find u ', ok, x2-x1, y2-y1)
+            if 30 <= (x2-x1) <= 60:
                 print('u:', (x1, y1, x2, y2), y2-y1, x2-x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
+            elif (x2-x1) > 60:
+                ok, x1, y1, x2, y2 = findminbox(mask_lower[x1:x2, y1:y2], (x1, y1, x2, y2), 0.95, 40, 30)
+                if 30 <= (x2-x1) <= 60:
+                    print('u:', (x1, y1, x2, y2), y2-y1, x2-x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))   
+                else:
+                    continue
+            else:
+                continue           
         else:
             continue
         i += 1
@@ -422,7 +490,7 @@ def detecting(im_url, angle, detectsetid, debug=None):
     ok = True
     if len(uboxes) > 1:
         print('start detect U..................')
-        ok, up_u, low_u, low_u_new, up_point, low_point = detectU(im, boxes, uimages, umasks, uboxes, im_name, DEBUG)
+        ok, up_u, low_u, low_u_new, up_point, low_point = detectU(im, boxes, uimages, umasks, uboxes, im_name, float(angle), DEBUG)
         u_range = [low_u, up_u]
         print('detect u result: ', ok, up_point, low_point)
     else:
