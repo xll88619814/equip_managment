@@ -50,7 +50,7 @@ def analyze_data(datas):
     LIGHT = False
     EQUIP = False
     for row in datas:
-        print('raw:', raw)
+        print('row:', row)
         if row['type'] == '8':
             EQUIP = True
         elif row['type'] == '1':
@@ -289,8 +289,7 @@ def detectU(im, boxes, utags, umasks, uboxes, im_name, angle, DEBUG):
 
 def detectIP(im, ok, tagimages, tagmasks, boxes, uboxes, up_u, low_u_new, low_point, up_point, im_name, DEBUG):
     print('start detect all tags..................')
-    detect = detect_tags(type_tag='ip', ratio=0.65, thresh_w=[16, 60], thresh_h=[34, 75], count=[], DEBUG=DEBUG,
-                         DEBUG_DIR=DEBUG_DIR)
+    detect = detect_tags(type_tag='ip', ratio=0.65, thresh_w=[16, 60], thresh_h=[34, 75], count=[], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
     result, result_switch = detect.detect_num(tagimages, im_name, tagmasks)
     print(len(boxes), len(result), len(result_switch))
 
@@ -385,10 +384,10 @@ def findalltags(im, im_name, DEBUG):
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
         #print('tagcccccc:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
-        if 230 >= (y2-y1) >= 100 and 40 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.58:
+        if  230 >= (y2-y1) >= 100 and 40 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.58:
             print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
             tagboxes.append(p.bbox)
-        if 230 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 40 and 0.4 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.9:
+        if  230 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 40 and 0.4 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.9:
             ok, x1, y1, x2, y2 = findminbox(mask_lower[x1:x2, y1:y2], p.bbox, 0.7, 100, 20)
             if 51 >= (x2-x1) >= 20 and ok:
                 print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
@@ -398,8 +397,11 @@ def findalltags(im, im_name, DEBUG):
         (x1, y1, x2, y2) = box
         x1 = 0 if x1 - 1 < 0 else x1 - 1
         x2 = im.shape[0] if x2 + 1 > im.shape[0] else x2 + 1
-        tagimages.append(im[x1:x2, y1-1:y2+1, :])
-        tagmasks.append(mask_lower[x1:x2, y1-1:y2+1])
+        y1 = 0 if y1 - 1 < 0 else y1 - 1
+        y2 = im.shape[1] if y2 + 1 > im.shape[1] else y2 + 1
+        print("ccc", box, im[x1:x2, y1:y2, :].shape)
+        tagimages.append(im[x1:x2, y1:y2, :])
+        tagmasks.append(mask_lower[x1:x2, y1:y2])
         # tagimages.append(im[x1:x2, y1:y2, :])
         # tagmasks.append(mask_lower[x1:x2, y1:y2])
         if DEBUG:
@@ -447,10 +449,12 @@ def findalltags(im, im_name, DEBUG):
             continue
         i += 1
         uboxes.append((x1, y1, x2, y2))
-        x = 0 if x1-1 <= 0 else x1-1
-        y = 0 if y1-1 <= 0 else y1-1
-        uimages.append(im[x:x2 + 1, y:y2 + 1, :])
-        umasks.append(mask_lower[x:x2 + 1, y:y2 + 1])
+        x1 = 0 if x1-1 <= 0 else x1-1
+        x2 = im.shape[0] if x2 + 1 > im.shape[0] else x2 + 1
+        y1 = 0 if y1-1 <= 0 else y1-1
+        y2 = im.shape[1] if y2 + 1 > im.shape[1] else y2 + 1
+        uimages.append(im[x1:x2, y1:y2, :])
+        umasks.append(mask_lower[x1:x2, y1:y2 + 1])
         # uimages.append(im[x1:x2, y1:y2, :])
         # umasks.append(mask_lower[x1:x2, y1:y2])
         cv2.rectangle(im_copy, (y1, x1), (y2, x2), (0, 0, 255), 3)

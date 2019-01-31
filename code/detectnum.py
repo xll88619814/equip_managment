@@ -160,7 +160,7 @@ class detect_tags:
             switch = False
             server = False
             # load the image
-            #print(image.shape)
+            print('tag shape: ', image.shape)
             width1 = image.shape[1] * 100 / image.shape[0]
             image = cv2.resize(image, (width1, 100), interpolation=cv2.INTER_CUBIC)
             mask = cv2.resize(masks[ind], (width1, 100), interpolation=cv2.INTER_CUBIC)
