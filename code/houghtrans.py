@@ -21,20 +21,43 @@ def rotateImage(src, degree):
     rotate = cv2.warpAffine(src, RotateMatrix, (w_new, h_new), borderValue=(255, 255, 255))
     return rotate
 
+def open_image(image):
+    #gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    ret, binary = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    cv2.imshow("二值化", image)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+    #cv.imshow("开操作", binary)
+    return binary
+ 
+def close_image(image):
+    #gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    #ret, binary = cv.threshold(gray, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    binary = cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel)
+    return binary
 
 def DegreeTrans(theta):
     res = theta / np.pi * 180
     return res
 
-def houghtrans(img):
+def houghtrans(img, angle):
     img_copy = img.copy()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
     blur = cv2.GaussianBlur(gray, (5,5), 0)
     edges = cv2.Canny(blur, 50, 200, apertureSize=3)
-    #cv2.imshow('edges', edges)
-    #cv2.waitKey(0)
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 0, 1000, 10)
+    '''
+    ret, binary = cv2.threshold(edges, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 10))
+    dilated = cv2.dilate(binary, kernel)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
+    eroded = cv2.erode(dilated, kernel)
+
+    cv2.imshow('edges3', eroded)
+    cv2.waitKey(0)
+    '''
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 100, 500, 10)
  
     print(lines.shape)
     sum_theta = 0
@@ -42,16 +65,17 @@ def houghtrans(img):
     rotate_angle = 0
     for i in range(len(lines)):
         for x1, y1, x2, y2 in lines[i]:
+            
             if x1 == x2 or y1 == y2:
                 continue
             t = float(y2 - y1) / (x2 - x1)
-            if t > 1 or t < -1:
+            if t > 0.2 or t < -0.2:
                 continue
             #print(t, math.degrees(math.atan(t)))
             sum_theta += t
             count += 1
             #cv2.line(img_copy, (x1, y1), (x2, y2), (0, 255, 0), 2)
-    
+    print(count)
     if count == 0:
         rotate_angle = 0
     else:
@@ -62,12 +86,16 @@ def houghtrans(img):
         rotate_angle = -90 + rotate_angle
     elif rotate_angle < -45:
         rotate_angle = 90 + rotate_angle
-    print("rotate_angle : "+str(rotate_angle))
-    if abs(rotate_angle) > 2:
+    print("rotate_angle : "+str(rotate_angle), sum_theta / count)
+    if angle == 0:
+        t = 3.0
+    else:
+        t = 2.0
+    if abs(rotate_angle) > 1.6:
         if rotate_angle < 0:
-            rotate_angle = rotate_angle/2.0
+            rotate_angle = rotate_angle/t
         else:
-            rotate_angle = rotate_angle/2.0
+            rotate_angle = rotate_angle/t
     print("rotate_angle : "+str(rotate_angle))
     #rotate_img = ndimage.rotate(img, rotate_angle, cval=255)
     rotate_img = rotateImage(img, rotate_angle)
@@ -89,7 +117,8 @@ def houghtrans_old(img):
     print(lines.shape)
     rotate_angle = 0
     print('lines[0]: ',lines[0])
-    for rho, theta in lines[0]:
+    for i in range(len(lines)):
+        rho, theta = lines[i][0]
         a = np.cos(theta)
         b = np.sin(theta)
         x0 = a * rho
@@ -103,11 +132,16 @@ def houghtrans_old(img):
         theta = float(y2 - y1) / (x2 - x1)
         rotate_angle = math.degrees(math.atan(theta))
         cv2.line(img_copy, (x1, y1), (x2, y2), (0, 0, 255), 1)
+        
+        print("rotate_angle : "+str(rotate_angle))
+        cv2.imshow('', img_copy)
+        cv2.waitKey(0)
         if rotate_angle > 45:
             rotate_angle = -90 + rotate_angle
         elif rotate_angle < -45:
             rotate_angle = 90 + rotate_angle
-        print("rotate_angle : "+str(rotate_angle))
+        #if < rotate_angle
+        #print("rotate_angle : "+str(rotate_angle))
 
     cv2.imwrite('line.jpg', img_copy)
     rotate_img = ndimage.rotate(img, rotate_angle, cval=255)
@@ -116,7 +150,7 @@ def houghtrans_old(img):
     return rotate_img
 
 if __name__ == '__main__':
-    im = cv2.imread('12.jpg')
-    img = houghtrans_old(im)
-    img_1 = houghtrans(im)
+    im = cv2.imread('test_images/10.jpg')
+    #img = houghtrans_old(im)
+    img_1 = houghtrans(im, 0.0)
 

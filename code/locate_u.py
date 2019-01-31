@@ -222,9 +222,9 @@ def findfirstpoint(uboxes, boxes, angle):
     print('len(bbox)', len(boxes))
     firstx = uboxes[0][2] - 10
     if angle == 0:
-        dist_thresh = 30
+        dist_thresh = 35
     else:
-        dist_thresh = 42
+        dist_thresh = 45
     if len(boxes) == 0:
         return firstx
     else:
@@ -383,6 +383,8 @@ def findalltags(im, im_name, DEBUG):
     im_copy = im.copy()
     for p in pro:
         (x1, y1, x2, y2) = p.bbox
+        if y1 < 100 or y2 > im.shape[1]-110:
+            continue
         #print('tagcccccc:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
         if  230 >= (y2-y1) >= 100 and 40 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.58:
             print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
@@ -399,7 +401,7 @@ def findalltags(im, im_name, DEBUG):
         x2 = im.shape[0] if x2 + 1 > im.shape[0] else x2 + 1
         y1 = 0 if y1 - 1 < 0 else y1 - 1
         y2 = im.shape[1] if y2 + 1 > im.shape[1] else y2 + 1
-        print("ccc", box, im[x1:x2, y1:y2, :].shape)
+        #print("ccc", box, im[x1:x2, y1:y2, :].shape)
         tagimages.append(im[x1:x2, y1:y2, :])
         tagmasks.append(mask_lower[x1:x2, y1:y2])
         # tagimages.append(im[x1:x2, y1:y2, :])
@@ -477,8 +479,8 @@ def detecting(im_url, angle, detectsetid, debug=None):
     LIGHT, EQUIP = analyze_data(data)
     #LIGHT = True
     #EQUIP = True
-      
-    im = houghtrans(im)
+
+    im = houghtrans(im, float(angle))
     im = transimage(im, float(angle))
     im_copy = im.copy()
 
