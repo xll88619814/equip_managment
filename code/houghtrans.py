@@ -57,7 +57,7 @@ def houghtrans(img, angle):
     cv2.imshow('edges3', eroded)
     cv2.waitKey(0)
     '''
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 100, 500, 10)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 0, 200, 20)
  
     print(lines.shape)
     sum_theta = 0
@@ -69,7 +69,7 @@ def houghtrans(img, angle):
             if x1 == x2 or y1 == y2:
                 continue
             t = float(y2 - y1) / (x2 - x1)
-            if t > 0.2 or t < -0.2:
+            if t > 0.1 or t < -0.1:
                 continue
             #print(t, math.degrees(math.atan(t)))
             sum_theta += t
@@ -88,14 +88,16 @@ def houghtrans(img, angle):
         rotate_angle = 90 + rotate_angle
     print("rotate_angle : "+str(rotate_angle), sum_theta / count)
     if angle == 0:
+        angle_t = 1.0
         t = 3.0
     else:
+        angle_t = 1.5
         t = 2.0
-    if abs(rotate_angle) > 1.6:
-        if rotate_angle < 0:
-            rotate_angle = rotate_angle/t
-        else:
-            rotate_angle = rotate_angle/t
+    if abs(rotate_angle) > angle_t:
+        #if rotate_angle < 0:
+            #rotate_angle = rotate_angle/t
+        #else:
+        rotate_angle = rotate_angle/t
     print("rotate_angle : "+str(rotate_angle))
     #rotate_img = ndimage.rotate(img, rotate_angle, cval=255)
     rotate_img = rotateImage(img, rotate_angle)

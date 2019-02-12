@@ -301,7 +301,7 @@ def detectIP(im, ok, tagimages, tagmasks, boxes, uboxes, up_u, low_u_new, low_po
         print('display switch information')
         tagboxes = []
         for ind, res in result_switch:
-            print(up_point, boxes[ind][0], boxes[ind][2], low_point+10, len(uboxes))
+            #print(up_point, boxes[ind][0], boxes[ind][2], low_point+10, len(uboxes))
             tagboxes.append(boxes[ind])
             if (up_point <= boxes[ind][0] and boxes[ind][2] <= low_point+10) or (len(uboxes) <= 2 and low_u_new == up_u):
                 if len(res) == 3:
@@ -386,10 +386,10 @@ def findalltags(im, im_name, DEBUG):
         if y1 < 100 or y2 > im.shape[1]-110:
             continue
         #print('tagcccccc:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
-        if  230 >= (y2-y1) >= 100 and 40 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.58:
+        if  240 >= (y2-y1) >= 100 and 40 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.58:
             print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
             tagboxes.append(p.bbox)
-        if  230 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 40 and 0.4 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.9:
+        if  240 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 40 and 0.4 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.9:
             ok, x1, y1, x2, y2 = findminbox(mask_lower[x1:x2, y1:y2], p.bbox, 0.7, 100, 20)
             if 51 >= (x2-x1) >= 20 and ok:
                 print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
@@ -522,7 +522,7 @@ def detecting(im_url, angle, detectsetid, debug=None):
         ok, im_copy, final_result, empty = detectIP(im_copy, ok, tagimages, tagmasks, boxes,  uboxes, up_u, low_u_new, low_point, up_point, im_name, DEBUG)
     
     print('ok: ', ok)
-    if (len(boxes) == 0 or empty) and ok:
+    if (len(final_result) == 0) and ok:
         cv2.putText(im_copy, 'NULL', (500, 500), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 3)
     elif not ok:
         cv2.putText(im_copy, 'False', (500, 500), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 3)
