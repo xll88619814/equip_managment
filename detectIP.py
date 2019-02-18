@@ -13,7 +13,7 @@ if __name__ =='__main__':
     #map2 = np.load("code/map2.npy")
     #print(map2.shape)
     test_dir = 'code/test_images/'
-    angle = '8.0'
+    angle = '0.0'
     for imagename in os.listdir(test_dir):
         print('image name is : ', imagename)
         image = test_dir + imagename   
