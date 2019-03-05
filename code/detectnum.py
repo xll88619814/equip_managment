@@ -1,7 +1,7 @@
 import copy
 import time
 import cv2, os
-import cPickle
+import pickle as cPickle
 import mahotas
 from math import *
 from imagesearch.hog import HOG
@@ -11,9 +11,9 @@ from ImagePreprocessing import pre_proc
 
 class detect_tags:
     def __init__(self, type_tag, ratio, thresh_w, thresh_h, count, DEBUG, DEBUG_DIR):
-        modelpath = 'code/train_nummodel/models/num_char_new.cpickle'
-        model = open(modelpath).read()
-        self.model = cPickle.loads(model)
+        modelpath = 'code/train_nummodel/models/num_char.cpickle'
+        model = open(modelpath,"rb")
+        self.model = cPickle.load(model, encoding='iso-8859-1')
 
         self.hog = HOG(orientations = 18, pixelsPerCell = (10, 10), cellsPerBlock = (1, 1), transform_sqrt = True, block_norm = "L2")
         self.dict = {10:'C', 11:'E', 12:'H', 13:'R', 14:'S', 15:'T', 16:'W'}
@@ -25,7 +25,7 @@ class detect_tags:
         self.DEBUG = DEBUG
         self.DEBUG_DIR = DEBUG_DIR
 
-    def IOU(self, Reframe, GTframe):
+    def IOU_(self, Reframe, GTframe):
         x1 = Reframe[0]
         y1 = Reframe[1]
         width1 = Reframe[2]
@@ -54,8 +54,64 @@ class detect_tags:
 
         return ratio
 
+    def IOU(self, boxes, gtbox):
+        iou_list = []
+        for b in boxes:
+            iou_list.append(self.IOU_(b, gtbox))
+        return max(iou_list)
 
     def selectcont(self, cnts, blurred):
+        contours = []
+        i = 0
+        height, width = blurred.shape[0:2]
+
+        # select suitable size box
+        for (c, _) in cnts:
+            (x, y, w, h) = cv2.boundingRect(c)
+            if x >= 6 and y > 0 and x+w < width and y+h < height-2:
+                if self.thresh_w[0] <= w <= self.thresh_w[1] and self.thresh_h[0] <= h <= self.thresh_h[1]:
+                    if w*1.0/h < self.ratio:
+                        if x - int(ceil((h*self.ratio-w)/2)) >= 0:
+                            x = x - int(ceil((h*self.ratio-w)/2))
+                            w = int(ceil(h * self.ratio))
+                    contours.append((x, y, w, h))
+                elif self.thresh_h[0] <= h <= self.thresh_h[1] and self.thresh_w[1] < w < 2*self.thresh_w[1]:#two num stick together
+                    blurr = blurred.copy()
+                    subim = blurr[y:y+h, x:x+w]
+                    splitimages = get_splitimages(subim)
+                    if splitimages:
+                        for j, splitimg in enumerate(splitimages):
+                            h0, w0 = splitimg.shape
+                            if j == 0:
+                                contours.append((x, y, w0, h0))
+                                nextx = x + w0
+                            else:
+                                contours.append((nextx, y , w0, h0))
+                                nextx = nextx + w0
+        # remove 
+        if contours:
+            boxes = []
+            boxes.append(contours[0])
+            cc = 0
+            for c in contours[1:]:
+                if (boxes[cc][1]+boxes[cc][3]/2 - c[1]) > 5:
+                    boxes.append(c)
+                    cc += 1
+            if boxes:
+                contours = []
+                contours.append(boxes[0])
+                for b in boxes[1:]:
+                    iou = self.IOU(contours, b)
+                    if iou < 0.2:
+                        contours.append(b)
+            
+        return contours                
+
+
+
+
+
+    def selectcont_old(self, cnts, blurred):
         contours = []
         i = 0
         height, width = blurred.shape[0:2]
@@ -74,7 +130,7 @@ class detect_tags:
                         prerect = (x, y, w, h)
                         i += 1
                     else:
-                        iou =  self.IOU(prerect, (x,y,w,h))
+                        iou =  self.IOU(contours, (x,y,w,h))
                         if iou < 0.2:
                             contours.append((x, y, w, h))
                             prerect = (x, y, w, h)
@@ -113,7 +169,7 @@ class detect_tags:
                             i += len(splitimages)
                             count = len(splitimages)
                     else:
-                        iou = self.IOU(prerect, (x, y, w, h))
+                        iou = self.IOU(contours, (x, y, w, h))
                         if iou < 0.2:
                             blurr = blurred.copy()
                             subim = blurr[y:y+h, x:x+w]
@@ -121,6 +177,7 @@ class detect_tags:
                             #cv2.imshow('subim', subim)
                             #cv2.waitKey(0)
                             splitimages = get_splitimages(subim)
+                            print('sss:',len(splitimages))
                             if splitimages:
                                 for j, splitimg in enumerate(splitimages):
                                     h0, w0 = splitimg.shape
@@ -161,13 +218,13 @@ class detect_tags:
             server = False
             # load the image
             print('tag shape: ', image.shape)
-            width1 = image.shape[1] * 100 / image.shape[0]
+            width1 = int(image.shape[1] * 100 / image.shape[0])
             image = cv2.resize(image, (width1, 100), interpolation=cv2.INTER_CUBIC)
             mask = cv2.resize(masks[ind], (width1, 100), interpolation=cv2.INTER_CUBIC)
             #cv2.imwrite(image_name+'_'+self.type+'_'+str(ind)+'.jpg', image)
             blurred = pre_proc.proc(image, mask)
 
-            width = blurred.shape[1] * 100 / blurred.shape[0]
+            width = int(blurred.shape[1] * 100 / blurred.shape[0])
             blurred = cv2.resize(blurred, (width, 100), interpolation=cv2.INTER_CUBIC)
             blurred = cv2.bitwise_not(blurred)
             edged = cv2.Canny(blurred, 50, 200)
@@ -183,10 +240,10 @@ class detect_tags:
             im_copy = blurred.copy()
             for (c, _) in cnts:
                 (x, y, w, h) = cv2.boundingRect(c)
-                # print(x, y, w, h)
+                #print(x, y, w, h)
                 cv2.rectangle(im_copy, (x, y), (x + w, y + h), (0, 0, 255), 1)
-                # cv2.imshow('im_copy', im_copy)
-                # cv2.waitKey(0)
+                #cv2.imshow('im_copy', im_copy)
+                #cv2.waitKey(0)
 
             if self.DEBUG:
                 savepath = os.path.join(self.DEBUG_DIR, image_name+'_'+self.type+'_'+str(ind)+'.jpg')
@@ -212,8 +269,8 @@ class detect_tags:
                 (x, y, w, h) = c
                 # print('digit:',(x, y, w, h))
                 roi = blurred[y:y + h, x:x + w]
-                # cv2.imshow('roi', roi)
-                # cv2.waitKey(0)
+                #cv2.imshow('roi', roi)
+                #cv2.waitKey(0)
 
                 # HOG + SVM
                 roi = cv2.resize(roi, (60, 80), interpolation=cv2.INTER_CUBIC)
@@ -242,18 +299,22 @@ class detect_tags:
                         if x - contours[i-1][0] <= max_w - 25:
                             cluster += digit
                         else:
-                            if 'S' in cluster and ('TC' in cluster or 'CH' in cluster or 'W' in cluster) or 'TCH' in cluster:
+                            if 'S' in cluster and ('TC' in cluster or 'CH' in cluster or 'W' in cluster) or 'CH' in cluster:
                                 cluster = 'SWITCH'
                                 switch = True
                             elif 'SE' in cluster or 'ER' in cluster or 'SR' in cluster:
                                 cluster = 'SER'
                                 server = True
 
+                            if cluster == 'S':
+                                cluster = ''
+                                cluster += digit
+                                continue
+
                             clusters.append(cluster)
                             cluster = ''
                             cluster += digit
             clusters.append(cluster)
-            #print(clusters)
             if not switch and not server:
                 if self.type == 'ip':
                     clusters = ''
@@ -278,14 +339,14 @@ class detect_tags:
                     clu += cl
                 clusters = clu
 
-            print('clusters', clusters)
+            #print('clusters', clusters)
             if switch:
-                if len(clusters) == 3:
-                    if clusters[1].isdigit() and clusters[2].isdigit():
-                        result_switch.append((ind, clusters))
-                else:
-                    if clusters[1].isdigit():
-                        result_switch.append((ind, clusters))
+                #if len(clusters) == 3:
+                    #if clusters[1].isdigit() and clusters[2].isdigit():
+                result_switch.append((ind, clusters))
+                #else:
+                    #if clusters[1].isdigit():
+                        #result_switch.append((ind, clusters))
             else:
                 result.append(clusters)
         print('result: ', result)

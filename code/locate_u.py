@@ -216,13 +216,13 @@ def findlastpoint(uboxes, boxes, low_u, angle):
         elif 0 <= dist[index] <= 40:
             lastx = boxes[index][2]
 
-    return lastx, low_u
+    return int(lastx), int(low_u)
 
 def findfirstpoint(uboxes, boxes, angle):
     print('len(bbox)', len(boxes))
     firstx = uboxes[0][2] - 10
     if angle == 0:
-        dist_thresh = 35
+        dist_thresh = 26
     else:
         dist_thresh = 45
     if len(boxes) == 0:
@@ -240,11 +240,11 @@ def findfirstpoint(uboxes, boxes, angle):
         if dist[index] <= dist_thresh:
             firstx = boxes[index][0]
 
-    return firstx
+    return int(firstx)
 
 def detectU(im, boxes, utags, umasks, uboxes, im_name, angle, DEBUG):
     if utags:
-        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[13, 45], thresh_h=[43, 72], count=2, DEBUG=DEBUG,
+        detect = detect_tags(type_tag='u', ratio=0.5, thresh_w=[13, 45], thresh_h=[41, 72], count=2, DEBUG=DEBUG,
                              DEBUG_DIR=DEBUG_DIR)
         u_num, switch = detect.detect_num(utags, im_name, umasks)
     else:
@@ -289,7 +289,7 @@ def detectU(im, boxes, utags, umasks, uboxes, im_name, angle, DEBUG):
 
 def detectIP(im, ok, tagimages, tagmasks, boxes, uboxes, up_u, low_u_new, low_point, up_point, im_name, DEBUG):
     print('start detect all tags..................')
-    detect = detect_tags(type_tag='ip', ratio=0.65, thresh_w=[16, 60], thresh_h=[34, 75], count=[], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
+    detect = detect_tags(type_tag='ip', ratio=0.65, thresh_w=[16, 60], thresh_h=[38, 75], count=[], DEBUG=DEBUG, DEBUG_DIR=DEBUG_DIR)
     result, result_switch = detect.detect_num(tagimages, im_name, tagmasks)
     print(len(boxes), len(result), len(result_switch))
 
@@ -303,13 +303,14 @@ def detectIP(im, ok, tagimages, tagmasks, boxes, uboxes, up_u, low_u_new, low_po
         for ind, res in result_switch:
             #print(up_point, boxes[ind][0], boxes[ind][2], low_point+10, len(uboxes))
             tagboxes.append(boxes[ind])
-            if (up_point <= boxes[ind][0] and boxes[ind][2] <= low_point+10) or (len(uboxes) <= 2 and low_u_new == up_u):
+            if (up_point <= boxes[ind][0] and boxes[ind][2] <= low_point+10) or (len(uboxes) <= 2 and low_u_new == up_u) or not ok:
+                print('res: ', res)
                 if len(res) == 3:
                     u_index = res[1] + '~' + res[2]
-                    u = (int(res[1]), int(res[2]))
+                    u = ((res[1]), (res[2]))
                 else:
                     u_index = res[1]
-                    u = (int(res[1]), int(res[1]))
+                    u = ((res[1]), (res[1]))
                 cv2.putText(im, 'IP: ' + res[0] + ' U: ' + u_index, (boxes[ind][1], boxes[ind][0]),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                 final_result.append({'IP': res[0], 'U': u})      
@@ -322,6 +323,8 @@ def detectIP(im, ok, tagimages, tagmasks, boxes, uboxes, up_u, low_u_new, low_po
     # the number of u is less than two and is not switch
     if up_u == low_u_new and empty:
         ok = False
+    elif up_u == low_u_new and not empty:
+        ok = True
 
     if ok == 'TF' and final_result == []:
         ok = False
@@ -333,12 +336,16 @@ def detectIP(im, ok, tagimages, tagmasks, boxes, uboxes, up_u, low_u_new, low_po
         sum_u = up_u - low_u_new
         height_u = (low_point - up_point) * 1.0 / sum_u
         print('display ip information')
+        
+        boxes_copy = []
+        result_copy = []
         for b, res in zip(boxes, result):
             if up_point <= b[0] and b[2] <= low_point+10 and res:
-                continue
-            else:
-                boxes.remove(b)
-                result.remove(res)
+                boxes_copy.append(b)
+                result_copy.append(res)
+            
+        boxes = boxes_copy
+        result = result_copy
         print(len(boxes), len(result))
         
         if boxes:
@@ -430,7 +437,7 @@ def findalltags(im, im_name, DEBUG):
         (x1, y1, x2, y2) = p.bbox
         if 41 <= y2-y1 <= 92 and 31 <= x2-x1 <= 45 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.9 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
             print('u:', (x1, y1, x2, y2), y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
-        elif 45 <= y2-y1 <= 95 and 45 < x2-x1 <= 75 and 2 > (y2-y1)*1.0/(x2-x1) > 0.6 and 1 > p.area*1.0/((x2-x1)*(y2-y1)) >= 0.4:
+        elif 45 <= y2-y1 <= 95 and 45 < x2-x1 <= 80 and 2 > (y2-y1)*1.0/(x2-x1) > 0.6 and 1 > p.area*1.0/((x2-x1)*(y2-y1)) >= 0.4:
             #if y2-y1 > 60:
             #    y1, y2 = findminbox_y(mask_lower[x1:x2, y1:y2], y1, y2, 0.85)
             #ok, x1, x2 = findminbox_x(mask_lower[x1:x2, y1:y2], x1, x2, 0.755)
@@ -476,12 +483,13 @@ def detecting(im_url, angle, detectsetid, debug=None):
         data = get_bean(detectsetid)
     else:
         return False, None, None, None, None, None
-    LIGHT, EQUIP = analyze_data(data)
+    #LIGHT, EQUIP = analyze_data(data)
     #LIGHT = True
     #EQUIP = True
 
     im = houghtrans(im, float(angle))
-    im = transimage(im, float(angle))
+    if float(angle) < 30:
+        im = transimage(im, float(angle))
     im_copy = im.copy()
 
     # save path of result image 
@@ -517,7 +525,7 @@ def detecting(im_url, angle, detectsetid, debug=None):
 
     final_result = []
     empty = True
-    if EQUIP and len(boxes) > 0 and ok != False:
+    if EQUIP and len(boxes) > 0:
         # detect equipment
         ok, im_copy, final_result, empty = detectIP(im_copy, ok, tagimages, tagmasks, boxes,  uboxes, up_u, low_u_new, low_point, up_point, im_name, DEBUG)
     

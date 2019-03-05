@@ -47,16 +47,6 @@ def houghtrans(img, angle):
     
     blur = cv2.GaussianBlur(gray, (5,5), 0)
     edges = cv2.Canny(blur, 50, 200, apertureSize=3)
-    '''
-    ret, binary = cv2.threshold(edges, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 10))
-    dilated = cv2.dilate(binary, kernel)
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
-    eroded = cv2.erode(dilated, kernel)
-
-    cv2.imshow('edges3', eroded)
-    cv2.waitKey(0)
-    '''
     lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 0, 200, 20)
  
     print(lines.shape)
@@ -94,12 +84,8 @@ def houghtrans(img, angle):
         angle_t = 1.5
         t = 2.0
     if abs(rotate_angle) > angle_t:
-        #if rotate_angle < 0:
-            #rotate_angle = rotate_angle/t
-        #else:
         rotate_angle = rotate_angle/t
     print("rotate_angle : "+str(rotate_angle))
-    #rotate_img = ndimage.rotate(img, rotate_angle, cval=255)
     rotate_img = rotateImage(img, rotate_angle)
     #cv2.imwrite('ratate_1.jpg', rotate_img)
     return rotate_img
