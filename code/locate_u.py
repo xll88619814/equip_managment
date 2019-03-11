@@ -138,63 +138,6 @@ def findminbox(im, box, thresh_ratio, w_thresh, h_thresh):
 
     return True, x1, y1, x2, y2
 
-
-def findminbox_x(im, x1, x2, thresh_ratio):
-    print('IP tag hight!!!!!!!!!!!!!!!!!!!!!!!')
-    w = im.shape[1]
-    ratio = np.sum(im == 255)*1.0/((x2-x1)*w)
-
-    x1_copy = x1
-    x2_copy = x2
-    while ratio < thresh_ratio:
-        if x2-x1 < 20:
-            return False, x1_copy, x2_copy
-        ratio1 = np.sum(im[2:, :] == 255) * 1.0 / ((x2-x1-1) * w)
-        ratio2 = np.sum(im[:-2, :] == 255) * 1.0 / ((x2-x1-1) * w)
-        if ratio1 > ratio2:
-            im = im[2:, :]
-            ratio = ratio1
-            x1 += 2
-        elif ratio1 < ratio2:
-            im = im[:-2, :]
-            ratio = ratio2
-            x2 -= 2
-        else:
-            im = im[2:-2, :]
-            ratio = ratio1
-            x1 += 2
-            x2 -= 2
-        print(ratio, x2-x1)
-
-    return True, x1, x2
-
-def findminbox_y(im, x1, x2, thresh_ratio):
-    print('IP tag width!!!!!!!!!!!!!!!!!!!!!!!')
-    w = im.shape[0]
-    ratio = np.sum(im == 255)*1.0/((x2-x1)*w)
-
-    while ratio < thresh_ratio:
-        if x2-x1 < 30:
-            return 0, 0
-        ratio1 = np.sum(im[:, 2:] == 255) * 1.0 / ((x2-x1-1) * w)
-        ratio2 = np.sum(im[:, :-2] == 255) * 1.0 / ((x2-x1-1) * w)
-        if ratio1 > ratio2:
-            im = im[:, 2:]
-            ratio = ratio1
-            x1 += 2
-        elif ratio1 < ratio2:
-            im = im[:, :-2]
-            ratio = ratio2
-            x2 -= 2
-        else:
-            im = im[:, 2:-2]
-            ratio = ratio1
-            x1 += 2
-            x2 -= 2
-        print(ratio, x2-x1)
-
-    return x1, x2
-
 def findlastpoint(uboxes, boxes, low_u, angle):
     print('len(bbox)', len(boxes))
     lastx = uboxes[1][2]
@@ -393,10 +336,10 @@ def findalltags(im, im_name, DEBUG):
         if y1 < 100 or y2 > im.shape[1]-110:
             continue
         #print('tagcccccc:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
-        if  240 >= (y2-y1) >= 100 and 40 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.58:
+        if  240 >= (y2-y1) >= 100 and 34 >= (x2-x1) >= 20 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.58:
             print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
             tagboxes.append(p.bbox)
-        if  240 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 40 and 0.4 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.9:
+        if  240 >= (y2-y1) >= 100 and 75 >= (x2-x1) > 34 and 0.4 < p.area * 1.0/((x2-x1) * (y2-y1)) < 0.9:
             ok, x1, y1, x2, y2 = findminbox(mask_lower[x1:x2, y1:y2], p.bbox, 0.7, 100, 20)
             if 51 >= (x2-x1) >= 20 and ok:
                 print('tag:', (x1, y1, x2, y2), (y2 - y1), (x2 - x1), p.area*1.0/((x2-x1)*(y2-y1)))
@@ -438,10 +381,6 @@ def findalltags(im, im_name, DEBUG):
         if 41 <= y2-y1 <= 92 and 31 <= x2-x1 <= 45 and 2.3 > (y2-y1)*1.0/(x2-x1) > 0.9 and p.area*1.0/((x2-x1)*(y2-y1)) >= 0.65:
             print('u:', (x1, y1, x2, y2), y2 - y1, x2 - x1, p.area * 1.0 / ((x2 - x1) * (y2 - y1)))
         elif 45 <= y2-y1 <= 95 and 45 < x2-x1 <= 80 and 2 > (y2-y1)*1.0/(x2-x1) > 0.6 and 1 > p.area*1.0/((x2-x1)*(y2-y1)) >= 0.4:
-            #if y2-y1 > 60:
-            #    y1, y2 = findminbox_y(mask_lower[x1:x2, y1:y2], y1, y2, 0.85)
-            #ok, x1, x2 = findminbox_x(mask_lower[x1:x2, y1:y2], x1, x2, 0.755)
-          
             ok, x1, y1, x2, y2 = findminbox(mask_lower[x1:x2, y1:y2], p.bbox, 0.85, 40, 30)
             print('find u ', ok, x2-x1, y2-y1)
             if 30 <= (x2-x1) <= 60:
@@ -483,7 +422,7 @@ def detecting(im_url, angle, detectsetid, debug=None):
         data = get_bean(detectsetid)
     else:
         return False, None, None, None, None, None
-    #LIGHT, EQUIP = analyze_data(data)
+    LIGHT, EQUIP = analyze_data(data)
     #LIGHT = True
     #EQUIP = True
 

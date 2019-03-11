@@ -10,8 +10,8 @@ class HOG:
 		self.orienations = orientations
 		self.pixelsPerCell = pixelsPerCell
 		self.cellsPerBlock = cellsPerBlock
-                self.transform_sqrt = transform_sqrt
-                self.block_norm = block_norm
+		self.transform_sqrt = transform_sqrt
+		self.block_norm = block_norm
 
 	def describe(self, image):
 		# compute HOG for the image

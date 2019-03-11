@@ -5,6 +5,8 @@ import json
 import numpy as np
 sys.path.append('../')
 sys.path.append('code/train_nummodel')
+sys.path.append('code/')
+sys.path.append('code/ImagePreprocessing')
 from code.locate_u import detecting
 
 
@@ -13,7 +15,7 @@ if __name__ =='__main__':
     #map2 = np.load("code/map2.npy")
     #print(map2.shape)
     test_dir = 'code/test_images/'
-    angle = '0.0'
+    angle = '-16.0'
     for imagename in os.listdir(test_dir):
         print('image name is : ', imagename)
         image = test_dir + imagename   
